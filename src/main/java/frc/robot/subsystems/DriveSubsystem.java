@@ -4,6 +4,11 @@
 
 package frc.robot.subsystems;
 
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.config.PIDConstants;
+import com.pathplanner.lib.config.RobotConfig;
+import com.pathplanner.lib.controllers.PPHolonomicDriveController;
+
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
@@ -16,8 +21,11 @@ import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.wpilibj.ADIS16470_IMU;
 import edu.wpi.first.wpilibj.ADIS16470_IMU.IMUAxis;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Timer;
 import frc.robot.Constants.DriveConstants;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+
 
 public class DriveSubsystem extends SubsystemBase {
   // Create MAXSwerveModules
@@ -55,12 +63,94 @@ public class DriveSubsystem extends SubsystemBase {
           m_rearRight.getPosition()
       });
 
+  // Acceleration limiter: choose time to reach full linear/angular speed (seconds)
+  private final DriveAccelerationLimiter m_accelLimiter = new DriveAccelerationLimiter(0.75, 0.75);
+  private double m_lastDriveTime = Double.NaN;
+  // pathplanner; Configure robot from GUI settings
+  RobotConfig config;
   /** Creates a new DriveSubsystem. */
   public DriveSubsystem() {
     // Usage reporting for MAXSwerve template
     HAL.report(tResourceType.kResourceType_RobotDrive, tInstances.kRobotDriveSwerve_MaxSwerve);
+    try{
+
+      // configure pathplanner autobuilder
+      config = RobotConfig.fromGUISettings();
+      // moved configure to try, as the code was not detecting the config option
+      AutoBuilder.configure(
+            this::getPose, // Robot pose supplier
+            this::resetPose, // Method to reset odometry (will be called if your auto has a starting pose)
+            this::getRobotRelativeSpeeds, // ChassisSpeeds supplier. MUST BE ROBOT RELATIVE
+            (speeds, feedforwards) -> driveRobotRelative(speeds), // Method that will drive the robot given ROBOT RELATIVE ChassisSpeeds. Also optionally outputs individual module feedforwards
+            new PPHolonomicDriveController( // PPHolonomicController is the built in path following controller for holonomic drive trains
+                    new PIDConstants(5.0, 0.0, 0.0), // Translation PID constants
+                    new PIDConstants(5.0, 0.0, 0.0) // Rotation PID constants
+            ),
+            config, // The robot configuration
+            () -> {
+              // Boolean supplier that controls when the path will be mirrored for the red alliance
+              // This will flip the path being followed to the red side of the field.
+              // THE ORIGIN WILL REMAIN ON THE BLUE SIDE
+
+              var alliance = DriverStation.getAlliance();
+              if (alliance.isPresent()) {
+                return alliance.get() == DriverStation.Alliance.Red;
+              }
+              return false;
+            },
+            this // Reference to this subsystem to set requirements
+    );
+    } catch (Exception e) {
+      // Handle exception as needed
+      e.printStackTrace();
+    }
+
+    // Configure AutoBuilder last
   }
 
+  //pathplanner: get gyro heading
+  public Rotation2d getGyroHeading() {
+
+
+    double degrees = m_gyro.getAngle();  // or imu.getAngle(IMUAxis.kYaw)
+    return Rotation2d.fromDegrees(degrees);
+  }
+  // resets robot pose
+  public void resetPose(Pose2d pose) {
+    // Reset your odometry / pose estimator to this pose.
+    // Implementation depends on your odometry class / subsystem.
+    m_odometry.resetPosition(
+          getGyroHeading(),
+          new SwerveModulePosition[] {
+             m_frontLeft.getPosition(),
+             m_frontRight.getPosition(),
+             m_rearLeft.getPosition(),
+             m_rearRight.getPosition()
+          },
+          pose
+        );
+  }
+
+  //pathplanner: get robot relative speeds
+  public ChassisSpeeds getRobotRelativeSpeeds() {
+    SwerveModuleState fl = m_frontLeft.getState();
+    SwerveModuleState fr = m_frontRight.getState();
+    SwerveModuleState bl = m_rearLeft.getState();
+    SwerveModuleState br = m_rearRight.getState();
+    return DriveConstants.kDriveKinematics.toChassisSpeeds(fl, fr, bl, br);
+  }
+  
+// pathplanner: drive robot relative
+  public void driveRobotRelative(ChassisSpeeds speeds) {
+    // Convert the desired chassis velocity into individual module states
+    SwerveModuleState[] states = DriveConstants.kDriveKinematics.toSwerveModuleStates(speeds);
+
+    // Apply the output to each module
+    m_frontLeft.setDesiredState(states[0]);
+    m_frontRight.setDesiredState(states[1]);
+    m_rearLeft.setDesiredState(states[2]);
+    m_rearRight.setDesiredState(states[3]);
+  }
   @Override
   public void periodic() {
     // Update the odometry in the periodic block
@@ -110,10 +200,21 @@ public class DriveSubsystem extends SubsystemBase {
    *                      field.
    */
   public void drive(double xSpeed, double ySpeed, double rot, boolean fieldRelative) {
-    // Convert the commanded speeds into the correct units for the drivetrain
-    double xSpeedDelivered = xSpeed * DriveConstants.kMaxSpeedMetersPerSecond;
-    double ySpeedDelivered = ySpeed * DriveConstants.kMaxSpeedMetersPerSecond;
-    double rotDelivered = rot * DriveConstants.kMaxAngularSpeed;
+    // compute dt (seconds)
+    double now = Timer.getFPGATimestamp();
+    double dt = Double.isNaN(m_lastDriveTime) ? 0.02 : Math.max(1e-6, now - m_lastDriveTime);
+    m_lastDriveTime = now;
+
+    // Limit acceleration on normalized inputs (-1..1)
+    double[] limited = m_accelLimiter.calculate(xSpeed, ySpeed, rot, dt);
+    double limitedX = limited[0];
+    double limitedY = limited[1];
+    double limitedRot = limited[2];
+
+    // Convert the commanded (limited) speeds into actual units for the drivetrain
+    double xSpeedDelivered = limitedX * DriveConstants.kMaxSpeedMetersPerSecond;
+    double ySpeedDelivered = limitedY * DriveConstants.kMaxSpeedMetersPerSecond;
+    double rotDelivered = limitedRot * DriveConstants.kMaxAngularSpeed;
 
     var swerveModuleStates = DriveConstants.kDriveKinematics.toSwerveModuleStates(
         fieldRelative
@@ -158,6 +259,9 @@ public class DriveSubsystem extends SubsystemBase {
     m_rearLeft.resetEncoders();
     m_frontRight.resetEncoders();
     m_rearRight.resetEncoders();
+    // also reset limiter so there's no large jump when starting again
+    m_accelLimiter.reset(0.0, 0.0, 0.0);
+    m_lastDriveTime = Double.NaN;
   }
 
   /** Zeroes the heading of the robot. */
