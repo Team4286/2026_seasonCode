@@ -11,5 +11,8 @@ This will include:
     A physics calculator: estimate what value is needed for a cannon
     Data table to integrate when velocity numbers are aquired
     An enum file for key components
-    A file that builds the cannon
+    A file that builds the cannon-> fly wheel design
+    
+No indexer is currently designed.
 
+Intake needs two motors.
