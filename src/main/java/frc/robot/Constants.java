@@ -99,4 +99,11 @@ public final class Constants {
   public static final class NeoMotorConstants {
     public static final double kFreeSpeedRpm = 5676;
   }
+
+  public static final class FuelLaunchConstants {
+    public static final double kLaunchAngleDeg = 50.0;
+    public static final double kExitHeightIn = 25.0;
+    // Blend: 1.0 = 100% physics, 0.0 = 100% LUT
+    public static final double kPhysicsBlend = 0.90;
+  }
 }
