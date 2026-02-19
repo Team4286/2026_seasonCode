@@ -19,7 +19,8 @@ public class physicsCalc {
     // Standard gravity in meters/sec^2
     public static final double G = 9.80665;
     // Effective shooter wheel diameter used for velocity->RPM conversion.
-    public static final double SHOOTER_WHEEL_DIAMETER_M = 0.09906; // 3.9 in effective compressed diameter
+    // TODO: Replace with measured effective diameter including compression.
+    public static final double SHOOTER_WHEEL_DIAMETER_M = 0.1016; // 4.0 in
 
     private static double inchesToMeters(double inches) {
         return inches * 0.0254;
