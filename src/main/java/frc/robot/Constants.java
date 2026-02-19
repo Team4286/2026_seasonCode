@@ -105,5 +105,10 @@ public final class Constants {
     public static final double kExitHeightIn = 25.0;
     // Blend: 1.0 = 100% physics, 0.0 = 100% LUT
     public static final double kPhysicsBlend = 0.90;
+    // Gear ratio from motor to flywheel. 4:1 reduction means motor spins 4x flywheel speed.
+    public static final double kFlywheelMotorToWheelRatio = 4.0;
   }
+  // add intake constants
+
+  // add photonvision constants
 }
