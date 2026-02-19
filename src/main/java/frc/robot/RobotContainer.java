@@ -37,13 +37,13 @@ import com.pathplanner.lib.auto.AutoBuilder;
  * (including subsystems, commands, and button mappings) should be declared here.
  */
 public class RobotContainer {
-  // The robot's subsystems
+  // Main drivetrain subsystem used in teleop and auto.
   private final DriveSubsystem m_robotDrive = new DriveSubsystem();
 
-  // The driver's controller
+  // Driver input device on USB port configured in OIConstants.
   XboxController m_driverController = new XboxController(OIConstants.kDriverControllerPort);
 
-  //pathplanner: set up digital chooser for autos
+  // Dashboard chooser for selecting PathPlanner autos at runtime.
   private final SendableChooser<Command> autoChooser;
 
   /**
@@ -90,9 +90,9 @@ public class RobotContainer {
             m_robotDrive));
   }
 
-  // when running a command for autonomous, call this to get the command
+  // Called by Robot during autonomous init.
   public Command getAutonomousCommand() {
-    //pathplanner
+    // Returns current SmartDashboard auto selection.
     return autoChooser.getSelected();
   }
   /*
