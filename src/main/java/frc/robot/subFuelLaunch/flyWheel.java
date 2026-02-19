@@ -1,5 +1,5 @@
 package frc.robot.subFuelLaunch;
-
+// this flywheel has currently taken 423 lines of code. :)
 import com.revrobotics.PersistMode;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.ResetMode;
@@ -14,6 +14,7 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants.FuelLaunchConstants;
 
 // Flywheel subsystem with a main shooter motor and a feed motor.
 // Main flywheel uses closed-loop velocity control; feed uses open-loop percent output.
@@ -31,6 +32,8 @@ public class flyWheel extends SubsystemBase {
     private static final double kDefaultClearDurationSec = 1.0;
     // NEO free speed used for simple RPM->percent conversion helper.
     private static final double kNeoFreeSpeedRpm = 5676.0;
+    // Gear ratio from motor to feed wheel.
+    private static final double kFeedMotorToWheelRatio = FuelLaunchConstants.kFeedMotorToWheelRatio;
 
     // Main shooter motor (controls exit velocity).
     private final SparkMax m_flyWheelSpark;
@@ -163,7 +166,8 @@ public class flyWheel extends SubsystemBase {
     // Backwards-compatible API: converts feed RPM request to percent output.
     public void setFeedSpeedRPM(double targetRPM) {
         // Approximation only: uses free-speed normalization.
-        setFeedPercent(targetRPM / kNeoFreeSpeedRpm);
+        double motorRpm = targetRPM * kFeedMotorToWheelRatio;
+        setFeedPercent(motorRpm / kNeoFreeSpeedRpm);
     }
 
     // Backwards-compatible API: schedules a non-blocking reverse clear.

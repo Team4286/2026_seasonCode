@@ -101,12 +101,14 @@ public final class Constants {
   }
 
   public static final class FuelLaunchConstants {
-    public static final double kLaunchAngleDeg = 50.0;
+    public static final double kLaunchAngleDeg = 80.0;
     public static final double kExitHeightIn = 25.0;
     // Blend: 1.0 = 100% physics, 0.0 = 100% LUT
     public static final double kPhysicsBlend = 0.90;
-    // Gear ratio from motor to flywheel. 4:1 reduction means motor spins 4x flywheel speed.
-    public static final double kFlywheelMotorToWheelRatio = 4.0;
+    // Gear ratio from motor to flywheel. 1:1 means motor spins same as flywheel.
+    public static final double kFlywheelMotorToWheelRatio = 1.0;
+    // Gear ratio from motor to feed wheel. 9:1 reduction means motor spins 9x feed wheel speed.
+    public static final double kFeedMotorToWheelRatio = 9.0;
   }
   // add intake constants
 
