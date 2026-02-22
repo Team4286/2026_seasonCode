@@ -79,6 +79,8 @@ public final class Constants {
   public static final class OIConstants {
     public static final int kDriverControllerPort = 0;
     public static final double kDriveDeadband = 0.05;
+    // Minimum scale when right trigger is fully pressed (0.0..1.0).
+    public static final double kTriggerSlowMinScale = 0.30;
   }
 
   public static final class AutoConstants {
@@ -91,6 +93,22 @@ public final class Constants {
     public static final double kPYController = 1;
     public static final double kPThetaController = 1;
 
+    // PathPlanner holonomic controller gains (default)
+    public static final double kPPTranslationP = 3.0;
+    public static final double kPPTranslationI = 0.0;
+    public static final double kPPTranslationD = 0.0;
+    public static final double kPPRotationP = 3.0;
+    public static final double kPPRotationI = 0.0;
+    public static final double kPPRotationD = 0.0;
+
+    // PathPlanner holonomic controller gains (low PID for tight testing space)
+    public static final double kPPTranslationPLow = 2.0;
+    public static final double kPPTranslationILow = 0.0;
+    public static final double kPPTranslationDLow = 0.0;
+    public static final double kPPRotationPLow = 2.0;
+    public static final double kPPRotationILow = 0.0;
+    public static final double kPPRotationDLow = 0.0;
+
     // Constraint for the motion profiled robot angle controller
     public static final TrapezoidProfile.Constraints kThetaControllerConstraints = new TrapezoidProfile.Constraints(
         kMaxAngularSpeedRadiansPerSecond, kMaxAngularSpeedRadiansPerSecondSquared);
@@ -99,4 +117,18 @@ public final class Constants {
   public static final class NeoMotorConstants {
     public static final double kFreeSpeedRpm = 5676;
   }
+
+  public static final class FuelLaunchConstants {
+    public static final double kLaunchAngleDeg = 80.0;
+    public static final double kExitHeightIn = 25.0;
+    // Blend: 1.0 = 100% physics, 0.0 = 100% LUT
+    public static final double kPhysicsBlend = 0.90;
+    // Gear ratio from motor to flywheel. 1:1 means motor spins same as flywheel.
+    public static final double kFlywheelMotorToWheelRatio = 1.0;
+    // Gear ratio from motor to feed wheel. 9:1 reduction means motor spins 9x feed wheel speed.
+    public static final double kFeedMotorToWheelRatio = 9.0;
+  }
+  // add intake constants
+
+  // add photonvision constants
 }

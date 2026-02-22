@@ -37,13 +37,13 @@ import com.pathplanner.lib.auto.AutoBuilder;
  * (including subsystems, commands, and button mappings) should be declared here.
  */
 public class RobotContainer {
-  // The robot's subsystems
+  // Main drivetrain subsystem used in teleop and auto.
   private final DriveSubsystem m_robotDrive = new DriveSubsystem();
 
-  // The driver's controller
+  // Driver input device on USB port configured in OIConstants.
   XboxController m_driverController = new XboxController(OIConstants.kDriverControllerPort);
 
-  //pathplanner: set up digital chooser for autos
+  // Dashboard chooser for selecting PathPlanner autos at runtime.
   private final SendableChooser<Command> autoChooser;
 
   /**
@@ -59,14 +59,15 @@ public class RobotContainer {
         // Turning is controlled by the X axis of the right stick.
         new RunCommand(
             () -> m_robotDrive.drive(
-                -MathUtil.applyDeadband(m_driverController.getLeftY(), OIConstants.kDriveDeadband),
-                -MathUtil.applyDeadband(m_driverController.getLeftX(), OIConstants.kDriveDeadband),
-                -MathUtil.applyDeadband(m_driverController.getRightX(), OIConstants.kDriveDeadband),
+                -MathUtil.applyDeadband(m_driverController.getLeftY(), OIConstants.kDriveDeadband) * getSpeedScale(),
+                -MathUtil.applyDeadband(m_driverController.getLeftX(), OIConstants.kDriveDeadband) * getSpeedScale(),
+                -MathUtil.applyDeadband(m_driverController.getRightX(), OIConstants.kDriveDeadband) * getSpeedScale(),
                 true),
             m_robotDrive));
             // pathplanner: build auto chooser and put on dashboard
     autoChooser = AutoBuilder.buildAutoChooser("New Auto");
     SmartDashboard.putData("Auto Chooser", autoChooser);
+    SmartDashboard.putBoolean("Auto PID Low", false);
   }
 
   /**
@@ -90,10 +91,22 @@ public class RobotContainer {
             m_robotDrive));
   }
 
-  // when running a command for autonomous, call this to get the command
+  // Right trigger scales translation + rotation speed down for precision driving.
+  private double getSpeedScale() {
+    double trigger = MathUtil.applyDeadband(m_driverController.getRightTriggerAxis(), 0.05);
+    double minScale = MathUtil.clamp(OIConstants.kTriggerSlowMinScale, 0.0, 1.0);
+    return 1.0 - trigger * (1.0 - minScale);
+  }
+
+  // Called by Robot during autonomous init.
   public Command getAutonomousCommand() {
-    //pathplanner
+    // Returns current SmartDashboard auto selection.
     return autoChooser.getSelected();
+  }
+
+  // Switch PathPlanner PID gains between default and low-gain auto mode.
+  public void setAutoPidMode(boolean useLowPid) {
+    m_robotDrive.setAutoPidMode(useLowPid);
   }
   /*
 
