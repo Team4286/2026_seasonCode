@@ -67,6 +67,7 @@ public class RobotContainer {
             // pathplanner: build auto chooser and put on dashboard
     autoChooser = AutoBuilder.buildAutoChooser("New Auto");
     SmartDashboard.putData("Auto Chooser", autoChooser);
+    SmartDashboard.putBoolean("Auto PID Low", false);
   }
 
   /**

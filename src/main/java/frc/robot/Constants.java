@@ -94,10 +94,10 @@ public final class Constants {
     public static final double kPThetaController = 1;
 
     // PathPlanner holonomic controller gains (default)
-    public static final double kPPTranslationP = 5.0;
+    public static final double kPPTranslationP = 3.0;
     public static final double kPPTranslationI = 0.0;
     public static final double kPPTranslationD = 0.0;
-    public static final double kPPRotationP = 5.0;
+    public static final double kPPRotationP = 3.0;
     public static final double kPPRotationI = 0.0;
     public static final double kPPRotationD = 0.0;
 
