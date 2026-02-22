@@ -79,6 +79,8 @@ public final class Constants {
   public static final class OIConstants {
     public static final int kDriverControllerPort = 0;
     public static final double kDriveDeadband = 0.05;
+    // Minimum scale when right trigger is fully pressed (0.0..1.0).
+    public static final double kTriggerSlowMinScale = 0.30;
   }
 
   public static final class AutoConstants {
@@ -90,6 +92,22 @@ public final class Constants {
     public static final double kPXController = 1;
     public static final double kPYController = 1;
     public static final double kPThetaController = 1;
+
+    // PathPlanner holonomic controller gains (default)
+    public static final double kPPTranslationP = 5.0;
+    public static final double kPPTranslationI = 0.0;
+    public static final double kPPTranslationD = 0.0;
+    public static final double kPPRotationP = 5.0;
+    public static final double kPPRotationI = 0.0;
+    public static final double kPPRotationD = 0.0;
+
+    // PathPlanner holonomic controller gains (low PID for tight testing space)
+    public static final double kPPTranslationPLow = 2.0;
+    public static final double kPPTranslationILow = 0.0;
+    public static final double kPPTranslationDLow = 0.0;
+    public static final double kPPRotationPLow = 2.0;
+    public static final double kPPRotationILow = 0.0;
+    public static final double kPPRotationDLow = 0.0;
 
     // Constraint for the motion profiled robot angle controller
     public static final TrapezoidProfile.Constraints kThetaControllerConstraints = new TrapezoidProfile.Constraints(
