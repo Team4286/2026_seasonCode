@@ -41,12 +41,6 @@
           }
         },
         {
-          "type": "path",
-          "data": {
-            "pathName": "actual auto(top 5)"
-          }
-        },
-        {
           "type": "wait",
           "data": {
             "waitTime": 4.0

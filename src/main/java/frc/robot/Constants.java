@@ -79,6 +79,9 @@ public final class Constants {
   public static final class OIConstants {
     public static final int kDriverControllerPort = 0;
     public static final double kDriveDeadband = 0.05;
+
+    // speed limit: minimum scale when right trigger is pressed
+    public static final double kTriggerSlowMinScale = 0.1;
   }
 
   public static final class AutoConstants {

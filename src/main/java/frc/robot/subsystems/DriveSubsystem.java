@@ -22,6 +22,7 @@ import edu.wpi.first.math.kinematics.SwerveModuleState;
 import com.studica.frc.AHRS;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants.DriveConstants;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -77,13 +78,13 @@ public class DriveSubsystem extends SubsystemBase {
       config = RobotConfig.fromGUISettings();
       // moved configure to try, as the code was not detecting the config option
       AutoBuilder.configure(
-            this::getPose, // Robot pose supplier
+            this::getPose, // Robot 1pose supplier
             this::resetPose, // Method to reset odometry (will be called if your auto has a starting pose)
             this::getRobotRelativeSpeeds, // ChassisSpeeds supplier. MUST BE ROBOT RELATIVE
             (speeds, feedforwards) -> driveRobotRelative(speeds), // Method that will drive the robot given ROBOT RELATIVE ChassisSpeeds. Also optionally outputs individual module feedforwards
             new PPHolonomicDriveController( // PPHolonomicController is the built in path following controller for holonomic drive trains
-                    new PIDConstants(5.0, 0.0, 0.0), // Translation PID constants
-                    new PIDConstants(5.0, 0.0, 0.0) // Rotation PID constants
+                    new PIDConstants(2.0, 0.0, 0.0), // Translation PID constants
+                    new PIDConstants(2.0, 0.0, 0.0) // Rotation PID constants
             ),
             config, // The robot configuration
             () -> {
@@ -160,6 +161,9 @@ public class DriveSubsystem extends SubsystemBase {
             m_rearLeft.getPosition(),
             m_rearRight.getPosition()
         });
+    // smart dashboard gyro check
+    SmartDashboard.putNumber("Gyro: Yaw Degrees",m_gyro.getRotation2d().getDegrees() );
+    SmartDashboard.putNumber("Gyro: Rate", m_gyro.getRate());
   }
 
   /**

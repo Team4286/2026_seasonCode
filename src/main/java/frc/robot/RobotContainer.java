@@ -59,15 +59,23 @@ public class RobotContainer {
         // Turning is controlled by the X axis of the right stick.
         new RunCommand(
             () -> m_robotDrive.drive(
-                -MathUtil.applyDeadband(m_driverController.getLeftY(), OIConstants.kDriveDeadband),
-                -MathUtil.applyDeadband(m_driverController.getLeftX(), OIConstants.kDriveDeadband),
-                -MathUtil.applyDeadband(m_driverController.getRightX(), OIConstants.kDriveDeadband),
+                -MathUtil.applyDeadband(m_driverController.getLeftY(), OIConstants.kDriveDeadband)*getSpeedScale(),
+                -MathUtil.applyDeadband(m_driverController.getLeftX(), OIConstants.kDriveDeadband)*getSpeedScale(),
+                -MathUtil.applyDeadband(m_driverController.getRightX(), OIConstants.kDriveDeadband)*getSpeedScale(),
                 true),
             m_robotDrive));
             // pathplanner: build auto chooser and put on dashboard
-    autoChooser = AutoBuilder.buildAutoChooser("New Auto");
+    autoChooser = AutoBuilder.buildAutoChooser();
     SmartDashboard.putData("Auto Chooser", autoChooser);
+    
   }
+  //Right trigger scales translation + rotation speed down for precission
+  private double getSpeedScale(){
+    double trigger = MathUtil.applyDeadband(m_driverController.getRightTriggerAxis(),0.05);
+    double minScale = MathUtil.clamp(OIConstants.kTriggerSlowMinScale, 0.0, 1.0);
+    return 1.0-trigger*(1.0-minScale);
+  }
+
 
   /**
    * Use this method to define your button->command mappings. Buttons can be
