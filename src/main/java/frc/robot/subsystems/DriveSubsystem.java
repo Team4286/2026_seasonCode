@@ -24,6 +24,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants.DriveConstants;
+import frc.robot.Constants.AutoConstants;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 
@@ -68,6 +69,7 @@ public class DriveSubsystem extends SubsystemBase {
   private double m_lastDriveTime = Double.NaN;
   // pathplanner; Configure robot from GUI settings
   RobotConfig config;
+  private boolean m_useLowAutoPid = false;
   /** Creates a new DriveSubsystem. */
   public DriveSubsystem() {
     // Usage reporting for MAXSwerve template
@@ -100,6 +102,11 @@ public class DriveSubsystem extends SubsystemBase {
             },
             this // Reference to this subsystem to set requirements
     );
+
+      configureAutoBuilder(
+          new PIDConstants(AutoConstants.kPPTranslationP, AutoConstants.kPPTranslationI, AutoConstants.kPPTranslationD),
+          new PIDConstants(AutoConstants.kPPRotationP, AutoConstants.kPPRotationI, AutoConstants.kPPRotationD));
+
     } catch (Exception e) {
       // Handle exception as needed
       e.printStackTrace();
@@ -113,6 +120,58 @@ public class DriveSubsystem extends SubsystemBase {
 
 
     return m_gyro.getRotation2d();
+  }
+
+  // Reconfigure PathPlanner controller gains for auto-only tuning.
+  public void setAutoPidMode(boolean useLowPid) {
+    if (config == null || m_useLowAutoPid == useLowPid) {
+      m_useLowAutoPid = useLowPid;
+      return;
+    }
+
+    PIDConstants translation;
+    PIDConstants rotation;
+    if (useLowPid) {
+      translation = new PIDConstants(
+          AutoConstants.kPPTranslationPLow, AutoConstants.kPPTranslationILow, AutoConstants.kPPTranslationDLow);
+      rotation = new PIDConstants(
+          AutoConstants.kPPRotationPLow, AutoConstants.kPPRotationILow, AutoConstants.kPPRotationDLow);
+    } else {
+      translation = new PIDConstants(
+          AutoConstants.kPPTranslationP, AutoConstants.kPPTranslationI, AutoConstants.kPPTranslationD);
+      rotation = new PIDConstants(
+          AutoConstants.kPPRotationP, AutoConstants.kPPRotationI, AutoConstants.kPPRotationD);
+    }
+
+    configureAutoBuilder(translation, rotation);
+    m_useLowAutoPid = useLowPid;
+  }
+
+  private void configureAutoBuilder(PIDConstants translation, PIDConstants rotation) {
+    // moved configure to try, as the code was not detecting the config option
+    AutoBuilder.configure(
+        this::getPose, // Robot pose supplier
+        this::resetPose, // Method to reset odometry (will be called if your auto has a starting pose)
+        this::getRobotRelativeSpeeds, // ChassisSpeeds supplier. MUST BE ROBOT RELATIVE
+        (speeds, feedforwards) -> driveRobotRelative(speeds), // Method that will drive the robot given ROBOT RELATIVE ChassisSpeeds. Also optionally outputs individual module feedforwards
+        new PPHolonomicDriveController( // PPHolonomicController is the built in path following controller for holonomic drive trains
+            translation, // Translation PID constants
+            rotation // Rotation PID constants
+        ),
+        config, // The robot configuration
+        () -> {
+          // Boolean supplier that controls when the path will be mirrored for the red alliance
+          // This will flip the path being followed to the red side of the field.
+          // THE ORIGIN WILL REMAIN ON THE BLUE SIDE
+
+          var alliance = DriverStation.getAlliance();
+          if (alliance.isPresent()) {
+            return alliance.get() == DriverStation.Alliance.Red;
+          }
+          return false;
+        },
+        this // Reference to this subsystem to set requirements
+    );
   }
   // resets robot pose
   public void resetPose(Pose2d pose) {
