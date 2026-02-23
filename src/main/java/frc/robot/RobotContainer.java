@@ -103,6 +103,10 @@ public class RobotContainer {
     //pathplanner
     return autoChooser.getSelected();
   }
+
+  public void setAutoPidMode(boolean useLowPid){
+    m_robotDrive.setAutoPidMode(useLowPid);
+  }
   /*
 
 // default command for auto: however, we want to call pathplanner autos instead
