@@ -77,15 +77,10 @@ public class physicsCalc {
         return (velocityMps / circumference) * 60.0;
     }
 
-    // Physics + LUT velocity converted to flywheel RPM, then adjusted by RPM LUT.
+    // Returns the empirical flywheel RPM target from the distance LUT.
+    // Method name is kept for compatibility with existing callers.
     public static double requiredFlywheelRpmWithLut(double horizontalDistanceM) {
-        double velocityMps = requiredVelocityMpsWithLut(horizontalDistanceM);
-        double baseRpm = velocityToFlywheelRpm(velocityMps);
-        if (Double.isNaN(baseRpm)) {
-            return Double.NaN;
-        }
-        // Final empirical trim in RPM space.
-        return baseRpm + dataTable.flywheelRpmOffset(horizontalDistanceM);
+        return dataTable.flywheelTargetRpmForDistance(horizontalDistanceM);
     }
 
     // Convenience: distance in centimeters, returns m/s
