@@ -1,20 +1,22 @@
 package frc.robot.subFuelLaunch;
 
 public class dataTable {
-    // Distances in meters for which we have tuned offsets.
+    // Distances in meters for which we have tuned shooter values.
     // TODO: Replace placeholder values with real practice data.
     private static final double[] DISTANCE_M = {
         1.0, 2.0, 3.0, 4.0
     };
 
-    // Corresponding launch velocity offsets (m/s).
+    // Velocity offsets are disabled in the current tuning approach.
+    // Keep this array for API compatibility with older code paths.
     private static final double[] VELOCITY_OFFSET_MPS = {
-        0.0, 0.2, 0.35, 0.5
+        0.0, 0.0, 0.0, 0.0
     };
 
-    // Corresponding flywheel RPM offsets.
-    private static final double[] FLYWHEEL_RPM_OFFSET = {
-        0.0, 80.0, 150.0, 230.0
+    // Absolute flywheel RPM targets (empirical: "what made the shot").
+    // Starting values below are seeded from the current physics model.
+    private static final double[] FLYWHEEL_TARGET_RPM = {
+        1213.0, 1659.0, 2045.0, 2308.0
     };
 
     // Corresponding feed motor open-loop output [-1.0, 1.0].
@@ -27,9 +29,15 @@ public class dataTable {
         return interpolate(distanceM, DISTANCE_M, VELOCITY_OFFSET_MPS);
     }
 
-    // Additive RPM correction applied after velocity->RPM conversion.
+    // Legacy offset API retained for compatibility. Returns zero because
+    // tuning now uses absolute RPM targets by distance.
     public static double flywheelRpmOffset(double distanceM) {
-        return interpolate(distanceM, DISTANCE_M, FLYWHEEL_RPM_OFFSET);
+        return 0.0;
+    }
+
+    // Absolute flywheel RPM command for a given shot distance.
+    public static double flywheelTargetRpmForDistance(double distanceM) {
+        return Math.max(0.0, interpolate(distanceM, DISTANCE_M, FLYWHEEL_TARGET_RPM));
     }
 
     // Feed output recommendation for a given shot distance.
