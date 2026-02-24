@@ -53,10 +53,17 @@ public class DriveSubsystem extends SubsystemBase {
   // The gyro sensor
   private final AHRS m_gyro = new AHRS(AHRS.NavXComType.kMXP_SPI);
 
+  private Rotation2d getGyroRotation(){
+    Rotation2d raw = m_gyro.getRotation2d();
+    return DriveConstants.kGyroReversed
+      ? Rotation2d.fromRadians(-raw.getRadians())
+      : raw;
+  }
+
   // Odometry class for tracking robot pose
   SwerveDriveOdometry m_odometry = new SwerveDriveOdometry(
       DriveConstants.kDriveKinematics,
-      m_gyro.getRotation2d(),
+      getGyroRotation(),
       new SwerveModulePosition[] {
           m_frontLeft.getPosition(),
           m_frontRight.getPosition(),
@@ -117,9 +124,7 @@ public class DriveSubsystem extends SubsystemBase {
 
   //pathplanner: get gyro heading
   public Rotation2d getGyroHeading() {
-
-
-    return m_gyro.getRotation2d();
+    return getGyroRotation();
   }
 
   // Reconfigure PathPlanner controller gains for auto-only tuning.
@@ -213,7 +218,7 @@ public class DriveSubsystem extends SubsystemBase {
   public void periodic() {
     // Update the odometry in the periodic block
     m_odometry.update(
-        m_gyro.getRotation2d(),
+        getGyroRotation(),
         new SwerveModulePosition[] {
             m_frontLeft.getPosition(),
             m_frontRight.getPosition(),
@@ -221,8 +226,10 @@ public class DriveSubsystem extends SubsystemBase {
             m_rearRight.getPosition()
         });
     // smart dashboard gyro check
-    SmartDashboard.putNumber("Gyro: Yaw Degrees",m_gyro.getRotation2d().getDegrees() );
-    SmartDashboard.putNumber("Gyro: Rate", m_gyro.getRate());
+    SmartDashboard.putNumber("Gyro: Yaw Degrees",getGyroHeading().getDegrees() );
+    SmartDashboard.putNumber("Gyro: Rate", m_gyro.getRotation2d().getDegrees());
+    SmartDashboard.putNumber("Gyro: Pitch", m_gyro.getPitch());
+    SmartDashboard.putNumber("Gyro: Roll", m_gyro.getRoll());
   }
 
   /**
@@ -241,7 +248,7 @@ public class DriveSubsystem extends SubsystemBase {
    */
   public void resetOdometry(Pose2d pose) {
     m_odometry.resetPosition(
-        m_gyro.getRotation2d(),
+        getGyroRotation(),
         new SwerveModulePosition[] {
             m_frontLeft.getPosition(),
             m_frontRight.getPosition(),
@@ -280,7 +287,7 @@ public class DriveSubsystem extends SubsystemBase {
     var swerveModuleStates = DriveConstants.kDriveKinematics.toSwerveModuleStates(
         fieldRelative
             ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered,
-                m_gyro.getRotation2d())
+                getGyroRotation())
             : new ChassisSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered));
     SwerveDriveKinematics.desaturateWheelSpeeds(
         swerveModuleStates, DriveConstants.kMaxSpeedMetersPerSecond);
@@ -336,7 +343,7 @@ public class DriveSubsystem extends SubsystemBase {
    * @return the robot's heading in degrees, from -180 to 180
    */
   public double getHeading() {
-    return m_gyro.getRotation2d().getDegrees();
+    return getGyroRotation().getDegrees();
   }
 
   /**

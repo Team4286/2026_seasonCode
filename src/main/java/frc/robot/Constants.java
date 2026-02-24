@@ -84,8 +84,8 @@ public final class Constants {
   }
 
   public static final class AutoConstants {
-    public static final double kMaxSpeedMetersPerSecond = 3;
-    public static final double kMaxAccelerationMetersPerSecondSquared = 3;
+    public static final double kMaxSpeedMetersPerSecond = 1;
+    public static final double kMaxAccelerationMetersPerSecondSquared = 1;
     public static final double kMaxAngularSpeedRadiansPerSecond = Math.PI;
     public static final double kMaxAngularSpeedRadiansPerSecondSquared = Math.PI;
 
@@ -94,18 +94,18 @@ public final class Constants {
     public static final double kPThetaController = 1;
 
     // PathPlanner holonomic controller gains (default)
-    public static final double kPPTranslationP = 3.0;
+    public static final double kPPTranslationP = 0.0;
     public static final double kPPTranslationI = 0.0;
     public static final double kPPTranslationD = 0.0;
-    public static final double kPPRotationP = 3.0;
+    public static final double kPPRotationP = 0.0;
     public static final double kPPRotationI = 0.0;
     public static final double kPPRotationD = 0.0;
 
     // PathPlanner holonomic controller gains (low PID for tight testing space)
-    public static final double kPPTranslationPLow = 2.0;
+    public static final double kPPTranslationPLow = 0.0;
     public static final double kPPTranslationILow = 0.0;
     public static final double kPPTranslationDLow = 0.0;
-    public static final double kPPRotationPLow = 2.0;
+    public static final double kPPRotationPLow = 0.0;
     public static final double kPPRotationILow = 0.0;
     public static final double kPPRotationDLow = 0.0;
 
