@@ -45,6 +45,7 @@ public class RobotContainer {
 
   //pathplanner: set up digital chooser for autos
   private final SendableChooser<Command> autoChooser;
+  private boolean m_fieldRelativeEnabled = true;
 
   /**
    * The container for the robot. Contains subsystems, OI devices, and commands.
@@ -62,11 +63,12 @@ public class RobotContainer {
                 -MathUtil.applyDeadband(m_driverController.getLeftY(), OIConstants.kDriveDeadband)*getSpeedScale(),
                 -MathUtil.applyDeadband(m_driverController.getLeftX(), OIConstants.kDriveDeadband)*getSpeedScale(),
                 -MathUtil.applyDeadband(m_driverController.getRightX(), OIConstants.kDriveDeadband)*getSpeedScale(),
-                true),
+                m_fieldRelativeEnabled),
             m_robotDrive));
             // pathplanner: build auto chooser and put on dashboard
     autoChooser = AutoBuilder.buildAutoChooser();
     SmartDashboard.putData("Auto Chooser", autoChooser);
+    SmartDashboard.putBoolean("Drive Field Relative Enabled", m_fieldRelativeEnabled);
     
   }
   //Right trigger scales translation + rotation speed down for precission
@@ -96,6 +98,13 @@ public class RobotContainer {
         .onTrue(new InstantCommand(
             () -> m_robotDrive.zeroHeading(),
             m_robotDrive));
+
+    new JoystickButton(m_driverController, XboxController.Button.kX.value)
+        .onTrue(new InstantCommand(
+            () -> {
+              m_fieldRelativeEnabled = !m_fieldRelativeEnabled;
+              SmartDashboard.putBoolean("Drive Field Relative Enabled", m_fieldRelativeEnabled);
+            }));
   }
 
   // when running a command for autonomous, call this to get the command

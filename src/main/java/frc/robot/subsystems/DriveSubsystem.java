@@ -205,8 +205,10 @@ public class DriveSubsystem extends SubsystemBase {
   
 // pathplanner: drive robot relative
   public void driveRobotRelative(ChassisSpeeds speeds) {
+    ChassisSpeeds discretizedSpeeds = ChassisSpeeds.discretize(speeds, 0.02);
     // Convert the desired chassis velocity into individual module states
-    SwerveModuleState[] states = DriveConstants.kDriveKinematics.toSwerveModuleStates(speeds);
+    SwerveModuleState[] states = DriveConstants.kDriveKinematics.toSwerveModuleStates(discretizedSpeeds);
+    SwerveDriveKinematics.desaturateWheelSpeeds(states, DriveConstants.kMaxSpeedMetersPerSecond);
 
     // Apply the output to each module
     m_frontLeft.setDesiredState(states[0]);
@@ -226,10 +228,15 @@ public class DriveSubsystem extends SubsystemBase {
             m_rearRight.getPosition()
         });
     // smart dashboard gyro check
-    SmartDashboard.putNumber("Gyro: Yaw Degrees",getGyroHeading().getDegrees() );
-    SmartDashboard.putNumber("Gyro: Rate", m_gyro.getRotation2d().getDegrees());
+    SmartDashboard.putBoolean("Gyro: Connected", m_gyro.isConnected());
+    SmartDashboard.putBoolean("Gyro: Calibrating", m_gyro.isCalibrating());
+    SmartDashboard.putNumber("Gyro: Rotation2d Degrees", getGyroHeading().getDegrees());
+    SmartDashboard.putNumber("Gyro: Yaw", m_gyro.getYaw());
+    SmartDashboard.putNumber("Gyro: Angle", m_gyro.getAngle());
+    SmartDashboard.putNumber("Gyro: Rate (deg/s)", m_gyro.getRate());
     SmartDashboard.putNumber("Gyro: Pitch", m_gyro.getPitch());
     SmartDashboard.putNumber("Gyro: Roll", m_gyro.getRoll());
+    SmartDashboard.putString("Drive Pose", getPose().toString());
   }
 
   /**
@@ -284,11 +291,12 @@ public class DriveSubsystem extends SubsystemBase {
     double ySpeedDelivered = limitedY * DriveConstants.kMaxSpeedMetersPerSecond;
     double rotDelivered = limitedRot * DriveConstants.kMaxAngularSpeed;
 
-    var swerveModuleStates = DriveConstants.kDriveKinematics.toSwerveModuleStates(
-        fieldRelative
-            ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered,
-                getGyroRotation())
-            : new ChassisSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered));
+    ChassisSpeeds commandedSpeeds = fieldRelative
+        ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered, getGyroRotation())
+        : new ChassisSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered);
+    ChassisSpeeds discretizedSpeeds = ChassisSpeeds.discretize(commandedSpeeds, dt);
+
+    var swerveModuleStates = DriveConstants.kDriveKinematics.toSwerveModuleStates(discretizedSpeeds);
     SwerveDriveKinematics.desaturateWheelSpeeds(
         swerveModuleStates, DriveConstants.kMaxSpeedMetersPerSecond);
     m_frontLeft.setDesiredState(swerveModuleStates[0]);
