@@ -78,6 +78,7 @@ public class Robot extends LoggedRobot {
     if (m_robotContainer != null) {
       boolean useLowPid = SmartDashboard.getBoolean("Auto PID Low", false);
       m_robotContainer.setAutoPidMode(useLowPid);
+      m_robotContainer.periodic();
     }
   }
 

@@ -29,6 +29,14 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 
 public class DriveSubsystem extends SubsystemBase {
+  private static final String kDrivePublishAdvancedKey = "Drive/PublishAdvanced";
+  private static final String kGyroConnectedKey = "Drive/GyroConnected";
+  private static final String kGyroHeadingDegKey = "Drive/GyroHeadingDeg";
+  private static final String kPoseXKey = "Drive/PoseX";
+  private static final String kPoseYKey = "Drive/PoseY";
+  private static final String kPoseHeadingDegKey = "Drive/PoseHeadingDeg";
+  private static final String kDriveSummaryKey = "Drive/Summary";
+
   // Create MAXSwerveModules
   private final MAXSwerveModule m_frontLeft = new MAXSwerveModule(
       DriveConstants.kFrontLeftDrivingCanId,
@@ -120,6 +128,7 @@ public class DriveSubsystem extends SubsystemBase {
     }
 
     // Configure AutoBuilder last
+    SmartDashboard.putBoolean(kDrivePublishAdvancedKey, false);
   }
 
   //pathplanner: get gyro heading
@@ -227,16 +236,32 @@ public class DriveSubsystem extends SubsystemBase {
             m_rearLeft.getPosition(),
             m_rearRight.getPosition()
         });
-    // smart dashboard gyro check
-    SmartDashboard.putBoolean("Gyro: Connected", m_gyro.isConnected());
-    SmartDashboard.putBoolean("Gyro: Calibrating", m_gyro.isCalibrating());
-    SmartDashboard.putNumber("Gyro: Rotation2d Degrees", getGyroHeading().getDegrees());
-    SmartDashboard.putNumber("Gyro: Yaw", m_gyro.getYaw());
-    SmartDashboard.putNumber("Gyro: Angle", m_gyro.getAngle());
-    SmartDashboard.putNumber("Gyro: Rate (deg/s)", m_gyro.getRate());
-    SmartDashboard.putNumber("Gyro: Pitch", m_gyro.getPitch());
-    SmartDashboard.putNumber("Gyro: Roll", m_gyro.getRoll());
-    SmartDashboard.putString("Drive Pose", getPose().toString());
+    Pose2d pose = getPose();
+    double headingDeg = getGyroHeading().getDegrees();
+    SmartDashboard.putBoolean(kGyroConnectedKey, m_gyro.isConnected());
+    SmartDashboard.putNumber(kGyroHeadingDegKey, headingDeg);
+    SmartDashboard.putNumber(kPoseXKey, pose.getX());
+    SmartDashboard.putNumber(kPoseYKey, pose.getY());
+    SmartDashboard.putNumber(kPoseHeadingDegKey, pose.getRotation().getDegrees());
+    SmartDashboard.putString(
+        kDriveSummaryKey,
+        String.format(
+            "gyro:%s hdg:%.1f | pose(%.2f, %.2f, %.1f)",
+            m_gyro.isConnected() ? "ok" : "bad",
+            headingDeg,
+            pose.getX(),
+            pose.getY(),
+            pose.getRotation().getDegrees()));
+
+    boolean publishAdvanced = SmartDashboard.getBoolean(kDrivePublishAdvancedKey, false);
+    if (publishAdvanced) {
+      SmartDashboard.putBoolean("Drive/GyroCalibrating", m_gyro.isCalibrating());
+      SmartDashboard.putNumber("Drive/GyroYaw", m_gyro.getYaw());
+      SmartDashboard.putNumber("Drive/GyroAngle", m_gyro.getAngle());
+      SmartDashboard.putNumber("Drive/GyroRateDegPerSec", m_gyro.getRate());
+      SmartDashboard.putNumber("Drive/GyroPitch", m_gyro.getPitch());
+      SmartDashboard.putNumber("Drive/GyroRoll", m_gyro.getRoll());
+    }
   }
 
   /**
