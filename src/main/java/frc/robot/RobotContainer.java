@@ -29,6 +29,7 @@ import edu.wpi.first.wpilibj2.command.button.JoystickButton;
 import java.util.List;
 
 import com.pathplanner.lib.auto.AutoBuilder;
+import frc.robot.vision.CameraServerWrapper;
 
 /*
  * This class is where the bulk of the robot should be declared.  Since Command-based is a
@@ -46,11 +47,14 @@ public class RobotContainer {
   //pathplanner: set up digital chooser for autos
   private final SendableChooser<Command> autoChooser;
   private boolean m_fieldRelativeEnabled = true;
+  private final CameraServerWrapper m_cameraServerWrapper = new CameraServerWrapper();
 
   /**
    * The container for the robot. Contains subsystems, OI devices, and commands.
    */
   public RobotContainer() {
+    m_cameraServerWrapper.initialize();
+
     // Configure the button bindings
     configureButtonBindings();
 
@@ -105,6 +109,9 @@ public class RobotContainer {
               m_fieldRelativeEnabled = !m_fieldRelativeEnabled;
               SmartDashboard.putBoolean("Drive Field Relative Enabled", m_fieldRelativeEnabled);
             }));
+
+    new JoystickButton(m_driverController, XboxController.Button.kY.value)
+        .onTrue(new InstantCommand(m_cameraServerWrapper::toggleReadEnabled));
   }
 
   // when running a command for autonomous, call this to get the command
@@ -115,6 +122,10 @@ public class RobotContainer {
 
   public void setAutoPidMode(boolean useLowPid){
     m_robotDrive.setAutoPidMode(useLowPid);
+  }
+
+  public void periodic() {
+    m_cameraServerWrapper.periodic();
   }
   /*
 
