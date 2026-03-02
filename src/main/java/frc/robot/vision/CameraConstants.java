@@ -7,13 +7,13 @@ import edu.wpi.first.math.geometry.Translation3d;
 public final class CameraConstants {
   public static final boolean kReadEnabledByDefault = true;
 
-  // Processing camera (AprilTag detection) on USB index 0.
+  // Processing camera (AprilTag detection) on USB index 1.
   public static final UsbCameraConfig kAprilTagCamera =
-      new UsbCameraConfig("AprilTagCam", 0, 320, 240, 12);
+      new UsbCameraConfig("AprilTagCam", 1, 320, 240, 12);
 
-  // Driver camera feed on USB index 1.
+  // Driver camera feed on USB index 0.
   public static final UsbCameraConfig kDriverCamera =
-      new UsbCameraConfig("DriverCam", 1, 320, 240, 12);
+      new UsbCameraConfig("DriverCam", 0, 320, 240, 12);
 
   // CPU-friendly vision processing rate. The vision thread sleeps between updates.
   public static final double kVisionProcessHz = 8.0;
