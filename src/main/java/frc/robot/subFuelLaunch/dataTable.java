@@ -1,5 +1,6 @@
 package frc.robot.subFuelLaunch;
 
+//these numbers will be chaged eventually.
 public class dataTable {
     // Distances in meters for which we have tuned shooter values.
     // TODO: Replace placeholder values with real practice data.
