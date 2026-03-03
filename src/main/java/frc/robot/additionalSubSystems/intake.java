@@ -15,6 +15,7 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -171,6 +172,9 @@ public class intake extends SubsystemBase {
 
     @Override
     public void periodic() {
-        // Keep this lightweight; telemetry/SmartDashboard can be added later.
+        SmartDashboard.putBoolean("Intake/ForwardLimitPressed", isForwardLimitPressed());
+        SmartDashboard.putBoolean("Intake/ReverseLimitPressed", isReverseLimitPressed());
+        SmartDashboard.putBoolean("Intake/UsingSparkMaxLimits", IntakeConstants.kUseSparkMaxLimitSwitches);
+        SmartDashboard.putNumber("Intake/AxlePositionRotations", getAxlePositionRotations());
     }
 }

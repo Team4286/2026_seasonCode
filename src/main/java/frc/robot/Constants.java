@@ -160,12 +160,12 @@ public final class Constants {
 
     // Limit switch electrical type for Omron switches.
     // Change to kNormallyClosed if your switches are wired NC.
-    public static final boolean kIntakeLimitSwitchNormallyClosed = false;
+    public static final boolean kIntakeLimitSwitchNormallyClosed = true;
 
     // Limit switch wiring mode.
     // true: switches wired to SPARK MAX data port
     // false: switches wired to roboRIO DIO pins
-    public static final boolean kUseSparkMaxLimitSwitches = true;
+    public static final boolean kUseSparkMaxLimitSwitches = false;
 
     // DIO channels used only when kUseSparkMaxLimitSwitches is false.
     public static final int kIntakeForwardLimitDioChannel = 0;

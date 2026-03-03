@@ -17,6 +17,7 @@ import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.PS4Controller.Button;
+import frc.robot.additionalSubSystems.intake;
 import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.Constants.OIConstants;
@@ -25,6 +26,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.SwerveControllerCommand;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.button.JoystickButton;
 import java.util.List;
 
@@ -40,6 +42,7 @@ import frc.robot.vision.CameraServerWrapper;
 public class RobotContainer {
   // The robot's subsystems
   private final DriveSubsystem m_robotDrive = new DriveSubsystem();
+  private final intake m_intake = new intake();
 
   // The driver's controller
   XboxController m_driverController = new XboxController(OIConstants.kDriverControllerPort);
@@ -103,14 +106,14 @@ public class RobotContainer {
             () -> m_robotDrive.zeroHeading(),
             m_robotDrive));
 
-    new JoystickButton(m_driverController, XboxController.Button.kX.value)
+    new Trigger(() -> m_driverController.getPOV() == 180)
         .onTrue(new InstantCommand(
             () -> {
               m_fieldRelativeEnabled = !m_fieldRelativeEnabled;
               SmartDashboard.putBoolean("Drive Field Relative Enabled", m_fieldRelativeEnabled);
             }));
 
-    new JoystickButton(m_driverController, XboxController.Button.kY.value)
+    new Trigger(() -> m_driverController.getPOV() == 0)
         .onTrue(new InstantCommand(m_cameraServerWrapper::toggleReadEnabled));
   }
 
