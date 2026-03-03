@@ -128,7 +128,49 @@ public final class Constants {
     // Gear ratio from motor to feed wheel. 9:1 reduction means motor spins 9x feed wheel speed.
     public static final double kFeedMotorToWheelRatio = 9.0;
   }
-  // add intake constants
+
+  public static final class IntakeConstants {
+    private IntakeConstants() {
+    }
+
+    // CAN IDs (set to your actual IDs in hardware).
+    public static final int kIntakeAxleCanId = 20;
+    public static final int kIntakeFeedCanId = 21;
+
+    // Motor directions.
+    public static final boolean kIntakeAxleInverted = false;
+    public static final boolean kIntakeFeedInverted = false;
+
+    // Current limits and neutral behavior.
+    public static final int kIntakeAxleCurrentLimitAmps = 35;
+    public static final int kIntakeFeedCurrentLimitAmps = 30;
+
+    // Gear ratios as motor:mechanism reductions.
+    public static final double kIntakeAxleMotorToOutputRatio = 75.0;
+    public static final double kIntakeFeedMotorToWheelRatio = 4.0;
+
+    // Closed-loop gains for axle position control.
+    public static final double kIntakeAxlekP = 2.0;
+    public static final double kIntakeAxlekI = 0.0;
+    public static final double kIntakeAxlekD = 0.0;
+
+    // Output axle travel range in output rotations.
+    public static final double kIntakeAxleMinRotations = 0.0;
+    public static final double kIntakeAxleMaxRotations = 1.0;
+
+    // Limit switch electrical type for Omron switches.
+    // Change to kNormallyClosed if your switches are wired NC.
+    public static final boolean kIntakeLimitSwitchNormallyClosed = false;
+
+    // Limit switch wiring mode.
+    // true: switches wired to SPARK MAX data port
+    // false: switches wired to roboRIO DIO pins
+    public static final boolean kUseSparkMaxLimitSwitches = true;
+
+    // DIO channels used only when kUseSparkMaxLimitSwitches is false.
+    public static final int kIntakeForwardLimitDioChannel = 0;
+    public static final int kIntakeReverseLimitDioChannel = 1;
+  }
 
   // add photonvision constants
 }
