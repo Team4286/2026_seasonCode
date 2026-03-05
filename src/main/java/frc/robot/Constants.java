@@ -119,6 +119,9 @@ public final class Constants {
   }
 
   public static final class FuelLaunchConstants {
+    public static final int kFlywheelCanId = 22;
+    public static final int kShooterFeedCanId = 23;
+
     public static final double kLaunchAngleDeg = 80.0;
     public static final double kExitHeightIn = 25.0;
     // Blend: 1.0 = 100% physics, 0.0 = 100% LUT

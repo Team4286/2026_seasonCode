@@ -20,8 +20,11 @@ import edu.wpi.first.wpilibj.PS4Controller.Button;
 import frc.robot.additionalSubSystems.intake;
 import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.DriveConstants;
+import frc.robot.Constants.IntakeConstants;
 import frc.robot.Constants.OIConstants;
+import frc.robot.Constants.FuelLaunchConstants;
 import frc.robot.subsystems.DriveSubsystem;
+import frc.robot.subFuelLaunch.flyWheel;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
@@ -31,6 +34,7 @@ import edu.wpi.first.wpilibj2.command.button.JoystickButton;
 import java.util.List;
 
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.auto.NamedCommands;
 import frc.robot.vision.CameraServerWrapper;
 
 /*
@@ -43,6 +47,9 @@ public class RobotContainer {
   // The robot's subsystems
   private final DriveSubsystem m_robotDrive = new DriveSubsystem();
   private final intake m_intake = new intake();
+  private final flyWheel m_shooter = new flyWheel(
+      FuelLaunchConstants.kFlywheelCanId,
+      FuelLaunchConstants.kShooterFeedCanId);
 
   // The driver's controller
   XboxController m_driverController = new XboxController(OIConstants.kDriverControllerPort);
@@ -50,13 +57,19 @@ public class RobotContainer {
   //pathplanner: set up digital chooser for autos
   private final SendableChooser<Command> autoChooser;
   private boolean m_fieldRelativeEnabled = true;
+  private boolean m_xPressLowersIntake = true;
   private final CameraServerWrapper m_cameraServerWrapper = new CameraServerWrapper();
+  private static final String kShooterDistanceMetersKey = "Shooter/TestDistanceMeters";
 
   /**
    * The container for the robot. Contains subsystems, OI devices, and commands.
    */
   public RobotContainer() {
     m_cameraServerWrapper.initialize();
+
+    initializeIntakeOnBoot();
+    initializeShooterOnBoot();
+    registerNamedCommands();
 
     // Configure the button bindings
     configureButtonBindings();
@@ -76,7 +89,66 @@ public class RobotContainer {
     autoChooser = AutoBuilder.buildAutoChooser();
     SmartDashboard.putData("Auto Chooser", autoChooser);
     SmartDashboard.putBoolean("Drive Field Relative Enabled", m_fieldRelativeEnabled);
+    SmartDashboard.putNumber(kShooterDistanceMetersKey, 2.0);
     
+  }
+
+  private void initializeIntakeOnBoot() {
+    m_intake.stopFeed();
+    m_intake.setAxlePositionRotations(IntakeConstants.kIntakeAxleMaxRotations);
+  }
+
+  private void registerNamedCommands() {
+    NamedCommands.registerCommand(
+        "lower",
+        lowerIntakeCommand());
+
+    NamedCommands.registerCommand(
+        "up",
+        raiseIntakeCommand());
+
+    NamedCommands.registerCommand(
+        "start spin",
+        m_intake.feedPercentCommand(0.5));
+
+    NamedCommands.registerCommand(
+        "stop spin",
+        new InstantCommand(m_intake::stopFeed, m_intake));
+
+    NamedCommands.registerCommand(
+        "shoot",
+        shootFromDashboardDistanceCommand());
+
+    NamedCommands.registerCommand(
+        "stop shoot",
+        new InstantCommand(m_shooter::stopAll, m_shooter));
+
+    NamedCommands.registerCommand(
+        "clear feed",
+        new InstantCommand(() -> m_shooter.reverseFeedWheel(1.0), m_shooter));
+  }
+
+  private Command lowerIntakeCommand() {
+    return m_intake.axlePercentCommand(-0.25)
+        .until(m_intake::isReverseLimitPressed)
+        .andThen(new InstantCommand(m_intake::stopAxle, m_intake));
+  }
+
+  private Command raiseIntakeCommand() {
+    return m_intake.axlePercentCommand(0.25)
+        .until(m_intake::isForwardLimitPressed)
+        .andThen(new InstantCommand(m_intake::stopAxle, m_intake));
+  }
+
+  private Command shootFromDashboardDistanceCommand() {
+    return new InstantCommand(() -> {
+      double distanceMeters = SmartDashboard.getNumber(kShooterDistanceMetersKey, 2.0);
+      m_shooter.startShootingForDistanceMeters(distanceMeters);
+    }, m_shooter);
+  }
+
+  private void initializeShooterOnBoot() {
+    m_shooter.stopAll();
   }
   //Right trigger scales translation + rotation speed down for precission
   private double getSpeedScale(){
@@ -105,6 +177,19 @@ public class RobotContainer {
         .onTrue(new InstantCommand(
             () -> m_robotDrive.zeroHeading(),
             m_robotDrive));
+
+    new JoystickButton(m_driverController, XboxController.Button.kX.value)
+        .onTrue(new InstantCommand(() -> {
+          if (m_xPressLowersIntake) {
+            lowerIntakeCommand().schedule();
+          } else {
+            raiseIntakeCommand().schedule();
+          }
+          m_xPressLowersIntake = !m_xPressLowersIntake;
+        }));
+
+    new JoystickButton(m_driverController, XboxController.Button.kY.value)
+        .toggleOnTrue(m_intake.feedPercentCommand(0.5));
 
     new Trigger(() -> m_driverController.getPOV() == 180)
         .onTrue(new InstantCommand(

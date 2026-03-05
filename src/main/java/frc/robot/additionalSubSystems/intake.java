@@ -14,8 +14,6 @@ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.wpilibj.DigitalInput;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -25,16 +23,17 @@ import frc.robot.Constants.IntakeConstants;
 // - axle motor: extends/retracts intake with 75:1 reduction
 // - feed motor: constant feed roller with 4:1 reduction
 public class intake extends SubsystemBase {
+    // Hardware components.
     private final SparkMax m_intakeAxle;
     private final SparkMax m_feedMotor;
-
+// - axle encoder and closed-loop controller for position control.
     private final RelativeEncoder m_intakeAxleEncoder;
     private final SparkClosedLoopController m_intakeAxleClosedLoopController;
 
+    // forward limit switch is at max extension, reverse limit switch is at max retraction. Both are normally closed. (should flip if needed)
+    // not sure if this will be hooked into the spark max or into a separate digital input, but the spark max limit switch features are nice if we can use them.
     private final SparkLimitSwitch m_forwardLimitSwitch;
     private final SparkLimitSwitch m_reverseLimitSwitch;
-    private final DigitalInput m_forwardLimitDio;
-    private final DigitalInput m_reverseLimitDio;
 
     public intake() {
         m_intakeAxle = new SparkMax(IntakeConstants.kIntakeAxleCanId, MotorType.kBrushless);
@@ -60,17 +59,11 @@ public class intake extends SubsystemBase {
         LimitSwitchConfig.Type switchType = IntakeConstants.kIntakeLimitSwitchNormallyClosed
                 ? LimitSwitchConfig.Type.kNormallyClosed
                 : LimitSwitchConfig.Type.kNormallyOpen;
-        if (IntakeConstants.kUseSparkMaxLimitSwitches) {
-            axleConfig.limitSwitch
-                    .forwardLimitSwitchType(switchType)
-                    .reverseLimitSwitchType(switchType)
-                    .forwardLimitSwitchTriggerBehavior(LimitSwitchConfig.Behavior.kStopMovingMotor)
-                    .reverseLimitSwitchTriggerBehavior(LimitSwitchConfig.Behavior.kStopMovingMotor);
-        } else {
-            axleConfig.limitSwitch
-                    .forwardLimitSwitchTriggerBehavior(LimitSwitchConfig.Behavior.kKeepMovingMotor)
-                    .reverseLimitSwitchTriggerBehavior(LimitSwitchConfig.Behavior.kKeepMovingMotor);
-        }
+        axleConfig.limitSwitch
+                .forwardLimitSwitchType(switchType)
+                .reverseLimitSwitchType(switchType)
+                .forwardLimitSwitchTriggerBehavior(LimitSwitchConfig.Behavior.kStopMovingMotor)
+                .reverseLimitSwitchTriggerBehavior(LimitSwitchConfig.Behavior.kStopMovingMotor);
 
         m_intakeAxle.configure(axleConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
@@ -81,17 +74,8 @@ public class intake extends SubsystemBase {
                 .inverted(IntakeConstants.kIntakeFeedInverted);
         m_feedMotor.configure(feedConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
-        if (IntakeConstants.kUseSparkMaxLimitSwitches) {
-            m_forwardLimitSwitch = m_intakeAxle.getForwardLimitSwitch();
-            m_reverseLimitSwitch = m_intakeAxle.getReverseLimitSwitch();
-            m_forwardLimitDio = null;
-            m_reverseLimitDio = null;
-        } else {
-            m_forwardLimitSwitch = null;
-            m_reverseLimitSwitch = null;
-            m_forwardLimitDio = new DigitalInput(IntakeConstants.kIntakeForwardLimitDioChannel);
-            m_reverseLimitDio = new DigitalInput(IntakeConstants.kIntakeReverseLimitDioChannel);
-        }
+        m_forwardLimitSwitch = m_intakeAxle.getForwardLimitSwitch();
+        m_reverseLimitSwitch = m_intakeAxle.getReverseLimitSwitch();
     }
 
     public void setFeedPercent(double percentOutput) {
@@ -129,22 +113,11 @@ public class intake extends SubsystemBase {
     }
 
     public boolean isForwardLimitPressed() {
-        return IntakeConstants.kUseSparkMaxLimitSwitches
-                ? m_forwardLimitSwitch.isPressed()
-                : isDioLimitPressed(m_forwardLimitDio);
+        return m_forwardLimitSwitch.isPressed();
     }
 
     public boolean isReverseLimitPressed() {
-        return IntakeConstants.kUseSparkMaxLimitSwitches
-                ? m_reverseLimitSwitch.isPressed()
-                : isDioLimitPressed(m_reverseLimitDio);
-    }
-
-    private boolean isDioLimitPressed(DigitalInput input) {
-        // Assumes the switch is wired between DIO signal and GND with roboRIO pull-up.
-        // NO: pressed -> circuit closes -> false.
-        // NC: pressed -> circuit opens -> true.
-        return input.get() == IntakeConstants.kIntakeLimitSwitchNormallyClosed;
+        return m_reverseLimitSwitch.isPressed();
     }
 
     public double getAxlePositionRotations() {
@@ -172,9 +145,6 @@ public class intake extends SubsystemBase {
 
     @Override
     public void periodic() {
-        SmartDashboard.putBoolean("Intake/ForwardLimitPressed", isForwardLimitPressed());
-        SmartDashboard.putBoolean("Intake/ReverseLimitPressed", isReverseLimitPressed());
-        SmartDashboard.putBoolean("Intake/UsingSparkMaxLimits", IntakeConstants.kUseSparkMaxLimitSwitches);
-        SmartDashboard.putNumber("Intake/AxlePositionRotations", getAxlePositionRotations());
+        // Keep this lightweight; telemetry/SmartDashboard can be added later.
     }
 }
