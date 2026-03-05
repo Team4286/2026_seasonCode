@@ -58,6 +58,7 @@ public class RobotContainer {
   private final SendableChooser<Command> autoChooser;
   private boolean m_fieldRelativeEnabled = true;
   private boolean m_xPressLowersIntake = true;
+  private boolean m_aPressStartsShooter = true;
   private final CameraServerWrapper m_cameraServerWrapper = new CameraServerWrapper();
   private static final String kShooterDistanceMetersKey = "Shooter/TestDistanceMeters";
 
@@ -190,6 +191,16 @@ public class RobotContainer {
 
     new JoystickButton(m_driverController, XboxController.Button.kY.value)
         .toggleOnTrue(m_intake.feedPercentCommand(0.5));
+
+    new JoystickButton(m_driverController, XboxController.Button.kA.value)
+        .onTrue(new InstantCommand(() -> {
+          if (m_aPressStartsShooter) {
+            shootFromDashboardDistanceCommand().schedule();
+          } else {
+            m_shooter.stopAll();
+          }
+          m_aPressStartsShooter = !m_aPressStartsShooter;
+        }, m_shooter));
 
     new Trigger(() -> m_driverController.getPOV() == 180)
         .onTrue(new InstantCommand(
