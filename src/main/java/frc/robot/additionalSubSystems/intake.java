@@ -166,6 +166,6 @@ public class intake extends SubsystemBase {
 
     @Override
     public void periodic() {
-        // Keep this lightweight; telemetry/SmartDashboard can be added later.
+        // Intentionally left empty.
     }
 }
