@@ -175,5 +175,31 @@ public final class Constants {
     public static final int kIntakeReverseLimitDioChannel = 1;
   }
 
-  // add photonvision constants
+  public static final class ClimberConstants {
+    private ClimberConstants() {
+    }
+
+    // AndyMark 2-hook climber, stage 1, with NEO on 100:1 reduction.
+    // Set CAN ID and inversion to match real wiring.
+    public static final int kClimberCanId = 13;
+    public static final boolean kClimberInverted = false;
+
+    // Motor protection and gearing.
+    public static final int kClimberCurrentLimitAmps = 40;
+    public static final double kClimberMotorToOutputRatio = 100.0;
+
+    // Closed-loop gains for stage-1 position control (tune on robot).
+    public static final double kClimberkP = 1.5;
+    public static final double kClimberkI = 0.0;
+    public static final double kClimberkD = 0.0;
+
+    // Stage-1 motion bounds in output rotations.
+    // Start with a conservative max and increase only after measuring full safe travel.
+    public static final double kClimberMinRotations = 0.0;
+    public static final double kClimberMaxRotations = 10.0;
+
+    // Useful manual speeds for driver controls.
+    public static final double kClimberExtendPercent = 0.50;
+    public static final double kClimberRetractPercent = -0.50;
+  }
 }
