@@ -6,14 +6,13 @@ import com.revrobotics.ResetMode;
 import com.revrobotics.spark.FeedbackSensor;
 import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkClosedLoopController;
-import com.revrobotics.spark.SparkLimitSwitch;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
-import com.revrobotics.spark.config.LimitSwitchConfig;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -30,10 +29,9 @@ public class intake extends SubsystemBase {
     private final RelativeEncoder m_intakeAxleEncoder;
     private final SparkClosedLoopController m_intakeAxleClosedLoopController;
 
-    // forward limit switch is at max extension, reverse limit switch is at max retraction. Both are normally closed. (should flip if needed)
-    // not sure if this will be hooked into the spark max or into a separate digital input, but the spark max limit switch features are nice if we can use them.
-    private final SparkLimitSwitch m_forwardLimitSwitch;
-    private final SparkLimitSwitch m_reverseLimitSwitch;
+    // DIO limit switches on roboRIO.
+    private final DigitalInput m_forwardLimitSwitch;
+    private final DigitalInput m_reverseLimitSwitch;
 
     public intake() {
         m_intakeAxle = new SparkMax(IntakeConstants.kIntakeAxleCanId, MotorType.kBrushless);
@@ -56,15 +54,6 @@ public class intake extends SubsystemBase {
                 .pid(IntakeConstants.kIntakeAxlekP, IntakeConstants.kIntakeAxlekI, IntakeConstants.kIntakeAxlekD)
                 .outputRange(-1.0, 1.0);
 
-        LimitSwitchConfig.Type switchType = IntakeConstants.kIntakeLimitSwitchNormallyClosed
-                ? LimitSwitchConfig.Type.kNormallyClosed
-                : LimitSwitchConfig.Type.kNormallyOpen;
-        axleConfig.limitSwitch
-                .forwardLimitSwitchType(switchType)
-                .reverseLimitSwitchType(switchType)
-                .forwardLimitSwitchTriggerBehavior(LimitSwitchConfig.Behavior.kStopMovingMotor)
-                .reverseLimitSwitchTriggerBehavior(LimitSwitchConfig.Behavior.kStopMovingMotor);
-
         m_intakeAxle.configure(axleConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
         SparkMaxConfig feedConfig = new SparkMaxConfig();
@@ -74,8 +63,8 @@ public class intake extends SubsystemBase {
                 .inverted(IntakeConstants.kIntakeFeedInverted);
         m_feedMotor.configure(feedConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
-        m_forwardLimitSwitch = m_intakeAxle.getForwardLimitSwitch();
-        m_reverseLimitSwitch = m_intakeAxle.getReverseLimitSwitch();
+        m_forwardLimitSwitch = new DigitalInput(IntakeConstants.kIntakeForwardLimitDioChannel);
+        m_reverseLimitSwitch = new DigitalInput(IntakeConstants.kIntakeReverseLimitDioChannel);
     }
 
     public void setFeedPercent(double percentOutput) {
@@ -113,11 +102,19 @@ public class intake extends SubsystemBase {
     }
 
     public boolean isForwardLimitPressed() {
-        return m_forwardLimitSwitch.isPressed();
+        return isDioLimitPressed(m_forwardLimitSwitch);
     }
 
     public boolean isReverseLimitPressed() {
-        return m_reverseLimitSwitch.isPressed();
+        return isDioLimitPressed(m_reverseLimitSwitch);
+    }
+
+    private boolean isDioLimitPressed(DigitalInput limitSwitch) {
+        // DIO reads true when open, false when shorted to GND.
+        // For normally-closed switches: pressed -> open -> true.
+        // For normally-open switches: pressed -> closed -> false.
+        boolean dioState = limitSwitch.get();
+        return IntakeConstants.kIntakeLimitSwitchNormallyClosed ? dioState : !dioState;
     }
 
     public double getAxlePositionRotations() {
