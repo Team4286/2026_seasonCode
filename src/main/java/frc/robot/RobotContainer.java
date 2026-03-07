@@ -13,7 +13,7 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.trajectory.Trajectory;
 import edu.wpi.first.math.trajectory.TrajectoryConfig;
 import edu.wpi.first.math.trajectory.TrajectoryGenerator;
-import edu.wpi.first.networktables.NetworkTableEntry;
+import edu.wpi.first.networktables.GenericEntry;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -65,7 +65,8 @@ public class RobotContainer {
   private boolean m_aPressStartsShooter = true;
   private final CameraServerWrapper m_cameraServerWrapper = new CameraServerWrapper();
   private static final String kShooterDistanceMetersKey = "Shooter/TestDistanceMeters";
-  private NetworkTableEntry m_driverControlsEntry;
+  private GenericEntry m_driverControlsEntry;
+  private GenericEntry m_shooterActiveEntry;
 
   /**
    * The container for the robot. Contains subsystems, OI devices, and commands.
@@ -240,6 +241,7 @@ public class RobotContainer {
     driverTab.addCamera("Driver Cam", CameraConstants.kDriverCamera.name());
     driverTab.addCamera("AprilTag Cam", CameraConstants.kAprilTagCamera.name());
     m_driverControlsEntry = driverTab.add("Driver Controls", "").withSize(6, 4).getEntry();
+    m_shooterActiveEntry = driverTab.add("Shooter Active", false).withSize(2, 1).getEntry();
     updateDriverControlsDashboard();
   }
 
@@ -248,6 +250,9 @@ public class RobotContainer {
       return;
     }
     m_driverControlsEntry.setString(buildDriverControlsSummary());
+    if (m_shooterActiveEntry != null) {
+      m_shooterActiveEntry.setBoolean(m_shooter.isShooting());
+    }
   }
 
   private String buildDriverControlsSummary() {
