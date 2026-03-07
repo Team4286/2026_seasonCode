@@ -38,7 +38,6 @@ import java.util.List;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
-import frc.robot.vision.CameraConstants;
 import frc.robot.vision.CameraServerWrapper;
 
 /*
@@ -238,8 +237,6 @@ public class RobotContainer {
 
   private void configureDriverDashboard() {
     ShuffleboardTab driverTab = Shuffleboard.getTab("Driver");
-    driverTab.addCamera("Driver Cam", CameraConstants.kDriverCamera.name());
-    driverTab.addCamera("AprilTag Cam", CameraConstants.kAprilTagCamera.name());
     m_driverControlsEntry = driverTab.add("Driver Controls", "").withSize(6, 4).getEntry();
     m_shooterActiveEntry = driverTab.add("Shooter Active", false).withSize(2, 1).getEntry();
     updateDriverControlsDashboard();

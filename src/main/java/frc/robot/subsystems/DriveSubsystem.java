@@ -85,6 +85,7 @@ public class DriveSubsystem extends SubsystemBase {
   // pathplanner; Configure robot from GUI settings
   RobotConfig config;
   private boolean m_useLowAutoPid = false;
+  private boolean m_autoBuilderConfigured = false;
   /** Creates a new DriveSubsystem. */
   public DriveSubsystem() {
     // Usage reporting for MAXSwerve template
@@ -93,31 +94,6 @@ public class DriveSubsystem extends SubsystemBase {
 
       // configure pathplanner autobuilder
       config = RobotConfig.fromGUISettings();
-      // moved configure to try, as the code was not detecting the config option
-      AutoBuilder.configure(
-            this::getPose, // Robot 1pose supplier
-            this::resetPose, // Method to reset odometry (will be called if your auto has a starting pose)
-            this::getRobotRelativeSpeeds, // ChassisSpeeds supplier. MUST BE ROBOT RELATIVE
-            (speeds, feedforwards) -> driveRobotRelative(speeds), // Method that will drive the robot given ROBOT RELATIVE ChassisSpeeds. Also optionally outputs individual module feedforwards
-            new PPHolonomicDriveController( // PPHolonomicController is the built in path following controller for holonomic drive trains
-                    new PIDConstants(2.0, 0.0, 0.0), // Translation PID constants
-                    new PIDConstants(2.0, 0.0, 0.0) // Rotation PID constants
-            ),
-            config, // The robot configuration
-            () -> {
-              // Boolean supplier that controls when the path will be mirrored for the red alliance
-              // This will flip the path being followed to the red side of the field.
-              // THE ORIGIN WILL REMAIN ON THE BLUE SIDE
-
-              var alliance = DriverStation.getAlliance();
-              if (alliance.isPresent()) {
-                return alliance.get() == DriverStation.Alliance.Red;
-              }
-              return false;
-            },
-            this // Reference to this subsystem to set requirements
-    );
-
       configureAutoBuilder(
           new PIDConstants(AutoConstants.kPPTranslationP, AutoConstants.kPPTranslationI, AutoConstants.kPPTranslationD),
           new PIDConstants(AutoConstants.kPPRotationP, AutoConstants.kPPRotationI, AutoConstants.kPPRotationD));
@@ -142,27 +118,17 @@ public class DriveSubsystem extends SubsystemBase {
       m_useLowAutoPid = useLowPid;
       return;
     }
-
-    PIDConstants translation;
-    PIDConstants rotation;
-    if (useLowPid) {
-      translation = new PIDConstants(
-          AutoConstants.kPPTranslationPLow, AutoConstants.kPPTranslationILow, AutoConstants.kPPTranslationDLow);
-      rotation = new PIDConstants(
-          AutoConstants.kPPRotationPLow, AutoConstants.kPPRotationILow, AutoConstants.kPPRotationDLow);
-    } else {
-      translation = new PIDConstants(
-          AutoConstants.kPPTranslationP, AutoConstants.kPPTranslationI, AutoConstants.kPPTranslationD);
-      rotation = new PIDConstants(
-          AutoConstants.kPPRotationP, AutoConstants.kPPRotationI, AutoConstants.kPPRotationD);
-    }
-
-    configureAutoBuilder(translation, rotation);
     m_useLowAutoPid = useLowPid;
+    DriverStation.reportWarning(
+        "Auto PID mode toggle requested, but AutoBuilder is configured once at startup only.",
+        false);
   }
 
   private void configureAutoBuilder(PIDConstants translation, PIDConstants rotation) {
-    // moved configure to try, as the code was not detecting the config option
+    if (m_autoBuilderConfigured) {
+      return;
+    }
+
     AutoBuilder.configure(
         this::getPose, // Robot pose supplier
         this::resetPose, // Method to reset odometry (will be called if your auto has a starting pose)
@@ -186,6 +152,7 @@ public class DriveSubsystem extends SubsystemBase {
         },
         this // Reference to this subsystem to set requirements
     );
+    m_autoBuilderConfigured = true;
   }
   // resets robot pose
   public void resetPose(Pose2d pose) {
