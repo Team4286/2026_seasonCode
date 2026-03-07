@@ -119,8 +119,8 @@ public final class Constants {
   }
 
   public static final class FuelLaunchConstants {
-    public static final int kFlywheelCanId = 22;
-    public static final int kShooterFeedCanId = 23;
+    public static final int kFlywheelCanId = 17;
+    public static final int kShooterFeedCanId = 7;
 
     public static final double kLaunchAngleDeg = 80.0;
     public static final double kExitHeightIn = 25.0;
@@ -137,8 +137,8 @@ public final class Constants {
     }
 
     // CAN IDs (set to your actual IDs in hardware).
-    public static final int kIntakeAxleCanId = 20;
-    public static final int kIntakeFeedCanId = 21;
+    public static final int kIntakeAxleCanId = 12;
+    public static final int kIntakeFeedCanId = 16;
 
     // Motor directions.
     public static final boolean kIntakeAxleInverted = false;
