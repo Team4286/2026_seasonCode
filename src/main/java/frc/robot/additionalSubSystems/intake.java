@@ -28,6 +28,7 @@ public class intake extends SubsystemBase {
 // - axle encoder and closed-loop controller for position control.
     private final RelativeEncoder m_intakeAxleEncoder;
     private final SparkClosedLoopController m_intakeAxleClosedLoopController;
+    private double m_lastAxlePercentCommand = 0.0;
 
     // DIO limit switches on roboRIO.
     private final DigitalInput m_forwardLimitSwitch;
@@ -68,13 +69,22 @@ public class intake extends SubsystemBase {
     }
 
     public void setFeedPercent(double percentOutput) {
+        if (isAtUpPosition() || isMovingTowardUp()) {
+            m_feedMotor.stopMotor();
+            return;
+        }
         m_feedMotor.set(MathUtil.clamp(percentOutput, -1.0, 1.0));
     }
 
     public void setAxlePercent(double percentOutput) {
         double clamped = MathUtil.clamp(percentOutput, -1.0, 1.0);
+        m_lastAxlePercentCommand = clamped;
+        if (isMovingTowardUp()) {
+            m_feedMotor.stopMotor();
+        }
         if ((clamped > 0.0 && isForwardLimitPressed()) || (clamped < 0.0 && isReverseLimitPressed())) {
             m_intakeAxle.stopMotor();
+            m_lastAxlePercentCommand = 0.0;
             return;
         }
         m_intakeAxle.set(clamped);
@@ -85,6 +95,11 @@ public class intake extends SubsystemBase {
                 outputRotations,
                 IntakeConstants.kIntakeAxleMinRotations,
                 IntakeConstants.kIntakeAxleMaxRotations);
+        m_lastAxlePercentCommand = 0.0;
+        double positionError = target - getAxlePositionRotations();
+        if ((positionError * IntakeConstants.kIntakeUpPercentDirection) > 0.0) {
+            m_feedMotor.stopMotor();
+        }
         m_intakeAxleClosedLoopController.setSetpoint(target, ControlType.kPosition);
     }
 
@@ -95,6 +110,7 @@ public class intake extends SubsystemBase {
 
     public void stopAxle() {
         m_intakeAxle.stopMotor();
+        m_lastAxlePercentCommand = 0.0;
     }
 
     public void stopFeed() {
@@ -115,6 +131,14 @@ public class intake extends SubsystemBase {
         // For normally-open switches: pressed -> closed -> false.
         boolean dioState = limitSwitch.get();
         return IntakeConstants.kIntakeLimitSwitchNormallyClosed ? dioState : !dioState;
+    }
+
+    private boolean isAtUpPosition() {
+        return IntakeConstants.kIntakeUpIsForwardLimit ? isForwardLimitPressed() : isReverseLimitPressed();
+    }
+
+    private boolean isMovingTowardUp() {
+        return (m_lastAxlePercentCommand * IntakeConstants.kIntakeUpPercentDirection) > 0.0;
     }
 
     public double getAxlePositionRotations() {

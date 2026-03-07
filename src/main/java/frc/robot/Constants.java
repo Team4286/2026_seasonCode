@@ -173,6 +173,15 @@ public final class Constants {
     // DIO channels used only when kUseSparkMaxLimitSwitches is false.
     public static final int kIntakeForwardLimitDioChannel = 0;
     public static final int kIntakeReverseLimitDioChannel = 1;
+
+    // Interlock mapping:
+    // true if "intake up/stowed" corresponds to forward limit.
+    // false if "intake up/stowed" corresponds to reverse limit.
+    public static final boolean kIntakeUpIsForwardLimit = true;
+
+    // Sign of manual axle percent that moves intake toward "up/stowed".
+    // Use 1.0 for positive direction, -1.0 for negative direction.
+    public static final double kIntakeUpPercentDirection = 1.0;
   }
 
   public static final class ClimberConstants {
