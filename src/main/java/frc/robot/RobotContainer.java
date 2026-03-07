@@ -13,10 +13,13 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.trajectory.Trajectory;
 import edu.wpi.first.math.trajectory.TrajectoryConfig;
 import edu.wpi.first.math.trajectory.TrajectoryGenerator;
+import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.PS4Controller.Button;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import frc.robot.additionalSubSystems.intake;
 import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.DriveConstants;
@@ -35,6 +38,7 @@ import java.util.List;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
+import frc.robot.vision.CameraConstants;
 import frc.robot.vision.CameraServerWrapper;
 
 /*
@@ -61,6 +65,7 @@ public class RobotContainer {
   private boolean m_aPressStartsShooter = true;
   private final CameraServerWrapper m_cameraServerWrapper = new CameraServerWrapper();
   private static final String kShooterDistanceMetersKey = "Shooter/TestDistanceMeters";
+  private NetworkTableEntry m_driverControlsEntry;
 
   /**
    * The container for the robot. Contains subsystems, OI devices, and commands.
@@ -91,6 +96,8 @@ public class RobotContainer {
     SmartDashboard.putData("Auto Chooser", autoChooser);
     SmartDashboard.putBoolean("Drive Field Relative Enabled", m_fieldRelativeEnabled);
     SmartDashboard.putNumber(kShooterDistanceMetersKey, 2.0);
+
+    configureDriverDashboard();
     
   }
 
@@ -225,6 +232,44 @@ public class RobotContainer {
 
   public void periodic() {
     m_cameraServerWrapper.periodic();
+    updateDriverControlsDashboard();
+  }
+
+  private void configureDriverDashboard() {
+    ShuffleboardTab driverTab = Shuffleboard.getTab("Driver");
+    driverTab.addCamera("Driver Cam", CameraConstants.kDriverCamera.name());
+    driverTab.addCamera("AprilTag Cam", CameraConstants.kAprilTagCamera.name());
+    m_driverControlsEntry = driverTab.add("Driver Controls", "").withSize(6, 4).getEntry();
+    updateDriverControlsDashboard();
+  }
+
+  private void updateDriverControlsDashboard() {
+    if (m_driverControlsEntry == null) {
+      return;
+    }
+    m_driverControlsEntry.setString(buildDriverControlsSummary());
+  }
+
+  private String buildDriverControlsSummary() {
+    String xAction = m_xPressLowersIntake ? "Lower intake" : "Raise intake";
+    String aAction = m_aPressStartsShooter ? "Start shooter" : "Stop shooter";
+    String shooterState = m_shooter.isShooting() ? "ON" : "OFF";
+    String fieldRelativeState = m_fieldRelativeEnabled ? "ON" : "OFF";
+    String visionReadState = m_cameraServerWrapper.isReadEnabled() ? "ON" : "OFF";
+
+    return String.join(
+        "\n",
+        formatControlLine("X", xAction, m_driverController.getXButton()),
+        formatControlLine("Y", "Intake feed toggle", m_driverController.getYButton()),
+        formatControlLine("A", aAction + " (shooter " + shooterState + ")", m_driverController.getAButton()),
+        formatControlLine("R1", "Swerve X (brake)", m_driverController.getRightBumperButton()),
+        formatControlLine("Start", "Zero heading", m_driverController.getStartButton()),
+        formatControlLine("POV Up", "Toggle vision read (vision " + visionReadState + ")", m_driverController.getPOV() == 0),
+        formatControlLine("POV Down", "Field relative " + fieldRelativeState, m_driverController.getPOV() == 180));
+  }
+
+  private String formatControlLine(String button, String action, boolean pressed) {
+    return String.format("%s: %s [%s]", button, action, pressed ? "PRESSED" : "idle");
   }
   /*
 
