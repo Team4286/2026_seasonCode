@@ -50,6 +50,8 @@ public class flyWheel extends SubsystemBase {
 
     // Non-blocking timer for feed reverse clear behavior.
     private final Timer m_clearTimer = new Timer();
+    // Non-blocking timer to delay feed until flywheel has spun up.
+    private final Timer m_shootSpinupTimer = new Timer();
 
     // Requested shooter speed setpoint (RPM).
     private double m_targetFlywheelRpm = 0.0;
@@ -58,6 +60,7 @@ public class flyWheel extends SubsystemBase {
     // Reverse output and duration for clear cycle.
     private double m_clearPercent = kDefaultClearPercent;
     private double m_clearDurationSec = kDefaultClearDurationSec;
+    private double m_feedDelaySec = 0.5;
 
     // State flags used by periodic to arbitrate feed behavior.
     private boolean m_isShooting = false;
@@ -105,7 +108,7 @@ public class flyWheel extends SubsystemBase {
     // Sets feed motor output in open-loop percent [-1.0, 1.0].
     public void setFeedPercent(double percentOutput) {
         m_feedPercent = MathUtil.clamp(percentOutput, -1.0, 1.0);
-        if (m_isShooting && !m_isClearingFeed) {
+        if (m_isShooting && !m_isClearingFeed && m_shootSpinupTimer.hasElapsed(m_feedDelaySec)) {
             m_feedSpark.set(m_feedPercent);
         }
     }
@@ -115,10 +118,11 @@ public class flyWheel extends SubsystemBase {
         m_isShooting = true;
         m_isClearingFeed = false;
         m_clearTimer.stop();
+        m_shootSpinupTimer.restart();
 
         setFlyWheelSpeedRPM(flywheelTargetRpm);
         setFeedPercent(feedPercent);
-        m_feedSpark.set(m_feedPercent);
+        m_feedSpark.stopMotor();
     }
 
     // Starts shooting with default feed speed.
@@ -135,6 +139,13 @@ public class flyWheel extends SubsystemBase {
         }
         double feedPercent = dataTable.feedPercentForDistance(distanceM);
         startShooting(targetRpm, feedPercent);
+    }
+
+    // Starts shooting using flywheel percent output target [0.0, 1.0].
+    public void startShootingAtPercent(double flywheelPercent) {
+        double clampedPercent = MathUtil.clamp(flywheelPercent, 0.0, 1.0);
+        double targetRpm = clampedPercent * kNeoFreeSpeedRpm;
+        startShooting(targetRpm, kDefaultFeedPercent);
     }
 
     // Distance convenience method where input is centimeters.
@@ -184,6 +195,7 @@ public class flyWheel extends SubsystemBase {
         m_targetFlywheelRpm = 0.0;
 
         m_clearTimer.stop();
+        m_shootSpinupTimer.stop();
         m_flyWheelSpark.stopMotor();
         m_feedSpark.stopMotor();
     }
@@ -213,6 +225,10 @@ public class flyWheel extends SubsystemBase {
         m_clearDurationSec = Math.max(0.0, clearDurationSec);
     }
 
+    public void setFeedDelaySeconds(double delaySec) {
+        m_feedDelaySec = Math.max(0.0, delaySec);
+    }
+
     @Override
     public void periodic() {
         // Clear state has priority over normal shooting feed.
@@ -229,6 +245,13 @@ public class flyWheel extends SubsystemBase {
 
         if (!m_isShooting) {
             // Keep feed stopped when idle.
+            m_feedSpark.stopMotor();
+            return;
+        }
+
+        if (m_shootSpinupTimer.hasElapsed(m_feedDelaySec)) {
+            m_feedSpark.set(m_feedPercent);
+        } else {
             m_feedSpark.stopMotor();
         }
     }

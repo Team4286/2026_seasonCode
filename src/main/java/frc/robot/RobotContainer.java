@@ -23,7 +23,6 @@ import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import frc.robot.additionalSubSystems.intake;
 import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.DriveConstants;
-import frc.robot.Constants.IntakeConstants;
 import frc.robot.Constants.OIConstants;
 import frc.robot.Constants.FuelLaunchConstants;
 import frc.robot.subsystems.DriveSubsystem;
@@ -63,7 +62,7 @@ public class RobotContainer {
   private boolean m_xPressLowersIntake = true;
   private boolean m_aPressStartsShooter = true;
   private final CameraServerWrapper m_cameraServerWrapper = new CameraServerWrapper();
-  private static final String kShooterDistanceMetersKey = "Shooter/TestDistanceMeters";
+  private static final String kShooterSpeedPercentKey = "Shooter/TestSpeedPercent";
   private GenericEntry m_driverControlsEntry;
   private GenericEntry m_shooterActiveEntry;
 
@@ -95,7 +94,7 @@ public class RobotContainer {
     autoChooser = AutoBuilder.buildAutoChooser();
     SmartDashboard.putData("Auto Chooser", autoChooser);
     SmartDashboard.putBoolean("Drive Field Relative Enabled", m_fieldRelativeEnabled);
-    SmartDashboard.putNumber(kShooterDistanceMetersKey, 2.0);
+    SmartDashboard.putNumber(kShooterSpeedPercentKey, 0.75);
 
     configureDriverDashboard();
     
@@ -103,7 +102,7 @@ public class RobotContainer {
 
   private void initializeIntakeOnBoot() {
     m_intake.stopFeed();
-    m_intake.setAxlePositionRotations(IntakeConstants.kIntakeAxleMaxRotations);
+    m_intake.stopAxle();
   }
 
   private void registerNamedCommands() {
@@ -125,7 +124,7 @@ public class RobotContainer {
 
     NamedCommands.registerCommand(
         "shoot",
-        shootFromDashboardDistanceCommand());
+        shootFromDashboardSpeedCommand());
 
     NamedCommands.registerCommand(
         "stop shoot",
@@ -148,10 +147,10 @@ public class RobotContainer {
         .andThen(new InstantCommand(m_intake::stopAxle, m_intake));
   }
 
-  private Command shootFromDashboardDistanceCommand() {
+  private Command shootFromDashboardSpeedCommand() {
     return new InstantCommand(() -> {
-      double distanceMeters = SmartDashboard.getNumber(kShooterDistanceMetersKey, 2.0);
-      m_shooter.startShootingForDistanceMeters(distanceMeters);
+      double flywheelSpeedPercent = SmartDashboard.getNumber(kShooterSpeedPercentKey, 0.75);
+      m_shooter.startShootingAtPercent(flywheelSpeedPercent);
     }, m_shooter);
   }
 
@@ -202,7 +201,7 @@ public class RobotContainer {
     new JoystickButton(m_driverController, XboxController.Button.kA.value)
         .onTrue(new InstantCommand(() -> {
           if (m_aPressStartsShooter) {
-            shootFromDashboardDistanceCommand().schedule();
+            shootFromDashboardSpeedCommand().schedule();
           } else {
             m_shooter.stopAll();
           }
