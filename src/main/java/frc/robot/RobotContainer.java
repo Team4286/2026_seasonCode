@@ -46,6 +46,8 @@ import frc.robot.vision.CameraServerWrapper;
  * (including subsystems, commands, and button mappings) should be declared here.
  */
 public class RobotContainer {
+  private static final double kIntakeAxleMoveTimeoutSeconds = 1.5;
+
   // The robot's subsystems
   private final DriveSubsystem m_robotDrive = new DriveSubsystem();
   private final intake m_intake = new intake();
@@ -98,8 +100,7 @@ public class RobotContainer {
   }
 
   private void initializeIntakeOnBoot() {
-    m_intake.stopFeed();
-    m_intake.stopAxle();
+    stopIntake();
   }
 
   private void registerNamedCommands() {
@@ -135,12 +136,14 @@ public class RobotContainer {
   private Command lowerIntakeCommand() {
     return m_intake.axlePercentCommand(-0.25)
         .until(m_intake::isReverseLimitPressed)
+        .withTimeout(kIntakeAxleMoveTimeoutSeconds)
         .andThen(new InstantCommand(m_intake::stopAxle, m_intake));
   }
 
   private Command raiseIntakeCommand() {
     return m_intake.axlePercentCommand(0.25)
         .until(m_intake::isForwardLimitPressed)
+        .withTimeout(kIntakeAxleMoveTimeoutSeconds)
         .andThen(new InstantCommand(m_intake::stopAxle, m_intake));
   }
 
@@ -190,6 +193,7 @@ public class RobotContainer {
             raiseIntakeCommand().schedule();
           }
           m_xPressLowersIntake = !m_xPressLowersIntake;
+          updateDriverControlsDashboard();
         }));
 
     new JoystickButton(m_driverController, XboxController.Button.kY.value)
@@ -229,6 +233,10 @@ public class RobotContainer {
   public void periodic() {
     m_cameraServerWrapper.periodic();
     updateDriverControlsDashboard();
+  }
+
+  public void stopIntake() {
+    m_intake.stopAll();
   }
 
   private void configureDriverDashboard() {

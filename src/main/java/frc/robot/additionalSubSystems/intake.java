@@ -38,6 +38,10 @@ public class intake extends SubsystemBase {
         m_intakeAxle = new SparkMax(IntakeConstants.kIntakeAxleCanId, MotorType.kBrushless);
         m_feedMotor = new SparkMax(IntakeConstants.kIntakeFeedCanId, MotorType.kBrushless);
 
+        // Force both controllers to neutral as soon as they are constructed.
+        m_intakeAxle.stopMotor();
+        m_feedMotor.stopMotor();
+
         m_intakeAxleEncoder = m_intakeAxle.getEncoder();
         m_intakeAxleClosedLoopController = m_intakeAxle.getClosedLoopController();
 
@@ -66,6 +70,8 @@ public class intake extends SubsystemBase {
 
         m_forwardLimitSwitch = new DigitalInput(IntakeConstants.kIntakeForwardLimitDioChannel);
         m_reverseLimitSwitch = new DigitalInput(IntakeConstants.kIntakeReverseLimitDioChannel);
+
+        stopAll();
     }
 
     public void setFeedPercent(double percentOutput) {
