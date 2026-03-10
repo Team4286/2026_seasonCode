@@ -112,6 +112,10 @@ public class DriveSubsystem extends SubsystemBase {
     return getGyroRotation();
   }
 
+  public boolean isGyroConnected() {
+    return m_gyro.isConnected();
+  }
+
   // Reconfigure PathPlanner controller gains for auto-only tuning.
   public void setAutoPidMode(boolean useLowPid) {
     if (config == null || m_useLowAutoPid == useLowPid) {

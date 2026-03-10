@@ -61,6 +61,9 @@ public class CameraServerWrapper {
 
   private boolean readEnabled = CameraConstants.kReadEnabledByDefault;
   private volatile boolean processingThreadRunning = false;
+  private volatile int connectedCameraCount = 0;
+  private volatile boolean hasTarget = false;
+  private volatile double distanceMeters = 0.0;
 
   public void initialize() {
     SmartDashboard.putBoolean(kReadEnabledKey, readEnabled);
@@ -81,6 +84,7 @@ public class CameraServerWrapper {
     int connectedCount = 0;
     connectedCount += initializeAprilTagCamera() ? 1 : 0;
     connectedCount += initializeDriverCamera() ? 1 : 0;
+    connectedCameraCount = connectedCount;
     SmartDashboard.putNumber(kConnectedCountKey, connectedCount);
 
     detector = new AprilTagDetector();
@@ -171,6 +175,7 @@ public class CameraServerWrapper {
                 long frameTime = aprilTagSink.grabFrame(frame);
                 if (frameTime == 0 || frame.empty()) {
                   SmartDashboard.putBoolean(kHasTargetKey, false);
+                  hasTarget = false;
                   SmartDashboard.putBoolean(kFieldPoseValidKey, false);
                   SmartDashboard.putString(kVisionSummaryKey, "target:none");
                   sleepSeconds(0.01);
@@ -194,6 +199,7 @@ public class CameraServerWrapper {
   private void publishBestDetection(AprilTagDetection[] detections) {
     if (detections.length == 0) {
       SmartDashboard.putBoolean(kHasTargetKey, false);
+      hasTarget = false;
       SmartDashboard.putBoolean(kFieldPoseValidKey, false);
       SmartDashboard.putString(kVisionSummaryKey, "target:none");
       return;
@@ -212,6 +218,7 @@ public class CameraServerWrapper {
     }
     if (decisionMargin < minDecisionMargin) {
       SmartDashboard.putBoolean(kHasTargetKey, false);
+      hasTarget = false;
       SmartDashboard.putBoolean(kFieldPoseValidKey, false);
       SmartDashboard.putString(
           kVisionSummaryKey,
@@ -222,6 +229,7 @@ public class CameraServerWrapper {
     Transform3d cameraToTag = poseEstimator.estimate(bestDetection);
     if (cameraToTag == null) {
       SmartDashboard.putBoolean(kHasTargetKey, false);
+      hasTarget = false;
       SmartDashboard.putBoolean(kFieldPoseValidKey, false);
       SmartDashboard.putString(kVisionSummaryKey, "target:bad-pose");
       return;
@@ -233,6 +241,8 @@ public class CameraServerWrapper {
     double distanceMeters = Math.sqrt(xMeters * xMeters + yMeters * yMeters + zMeters * zMeters);
     double yawDegrees = Math.toDegrees(Math.atan2(yMeters, xMeters));
 
+    hasTarget = true;
+    this.distanceMeters = distanceMeters;
     SmartDashboard.putBoolean(kHasTargetKey, true);
     SmartDashboard.putNumber(kBestIdKey, bestDetection.getId());
     SmartDashboard.putNumber(kDistanceMetersKey, distanceMeters);
@@ -305,6 +315,22 @@ public class CameraServerWrapper {
 
   public boolean isReadEnabled() {
     return readEnabled;
+  }
+
+  public boolean hasTarget() {
+    return hasTarget;
+  }
+
+  public boolean areCamerasWorking() {
+    return connectedCameraCount > 0;
+  }
+
+  public int getConnectedCameraCount() {
+    return connectedCameraCount;
+  }
+
+  public double getDistanceMeters() {
+    return distanceMeters;
   }
 
   public void close() {

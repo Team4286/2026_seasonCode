@@ -65,6 +65,7 @@ public class RobotContainer {
   private static final String kShooterSpeedPercentKey = "Shooter/TestSpeedPercent";
   private GenericEntry m_driverControlsEntry;
   private GenericEntry m_shooterActiveEntry;
+  private GenericEntry m_shooterSpeedPercentEntry;
 
   /**
    * The container for the robot. Contains subsystems, OI devices, and commands.
@@ -90,14 +91,10 @@ public class RobotContainer {
                 -MathUtil.applyDeadband(m_driverController.getRightX(), OIConstants.kDriveDeadband)*getSpeedScale(),
                 m_fieldRelativeEnabled),
             m_robotDrive));
-            // pathplanner: build auto chooser and put on dashboard
+    // pathplanner: build auto chooser and put on dashboard
     autoChooser = AutoBuilder.buildAutoChooser();
-    SmartDashboard.putData("Auto Chooser", autoChooser);
-    SmartDashboard.putBoolean("Drive Field Relative Enabled", m_fieldRelativeEnabled);
     SmartDashboard.putNumber(kShooterSpeedPercentKey, 0.75);
-
     configureDriverDashboard();
-    
   }
 
   private void initializeIntakeOnBoot() {
@@ -149,7 +146,7 @@ public class RobotContainer {
 
   private Command shootFromDashboardSpeedCommand() {
     return new InstantCommand(() -> {
-      double flywheelSpeedPercent = SmartDashboard.getNumber(kShooterSpeedPercentKey, 0.75);
+      double flywheelSpeedPercent = getShooterSpeedPercent();
       m_shooter.startShootingAtPercent(flywheelSpeedPercent);
     }, m_shooter);
   }
@@ -212,7 +209,7 @@ public class RobotContainer {
         .onTrue(new InstantCommand(
             () -> {
               m_fieldRelativeEnabled = !m_fieldRelativeEnabled;
-              SmartDashboard.putBoolean("Drive Field Relative Enabled", m_fieldRelativeEnabled);
+              updateDriverControlsDashboard();
             }));
 
     new Trigger(() -> m_driverController.getPOV() == 0)
@@ -238,6 +235,14 @@ public class RobotContainer {
     ShuffleboardTab driverTab = Shuffleboard.getTab("Driver");
     m_driverControlsEntry = driverTab.add("Driver Controls", "").withSize(6, 4).getEntry();
     m_shooterActiveEntry = driverTab.add("Shooter Active", false).withSize(2, 1).getEntry();
+    m_shooterSpeedPercentEntry = driverTab.add("Flywheel Speed %", 0.75).withSize(2, 1).getEntry();
+    driverTab.addBoolean("Gyro Connected", m_robotDrive::isGyroConnected).withSize(2, 1);
+    driverTab.addBoolean("Cameras Working", m_cameraServerWrapper::areCamerasWorking).withSize(2, 1);
+    driverTab.addBoolean("Vision Working", m_cameraServerWrapper::hasTarget).withSize(2, 1);
+    driverTab.addDouble("Target Distance (m)", m_cameraServerWrapper::getDistanceMeters).withSize(2, 1);
+    driverTab.addBoolean("Field Relative", () -> m_fieldRelativeEnabled).withSize(2, 1);
+    driverTab.add("Auto Chooser", autoChooser).withSize(4, 2);
+    Shuffleboard.selectTab("Driver");
     updateDriverControlsDashboard();
   }
 
@@ -249,6 +254,16 @@ public class RobotContainer {
     if (m_shooterActiveEntry != null) {
       m_shooterActiveEntry.setBoolean(m_shooter.isShooting());
     }
+  }
+
+  private double getShooterSpeedPercent() {
+    double dashboardPercent = SmartDashboard.getNumber(kShooterSpeedPercentKey, 0.75);
+    if (m_shooterSpeedPercentEntry == null) {
+      return MathUtil.clamp(dashboardPercent, 0.0, 1.0);
+    }
+    double tabPercent = MathUtil.clamp(m_shooterSpeedPercentEntry.getDouble(dashboardPercent), 0.0, 1.0);
+    SmartDashboard.putNumber(kShooterSpeedPercentKey, tabPercent);
+    return tabPercent;
   }
 
   private String buildDriverControlsSummary() {
