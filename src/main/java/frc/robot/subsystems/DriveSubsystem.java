@@ -14,11 +14,13 @@ import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
-import edu.wpi.first.math.kinematics.SwerveDriveOdometry;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import edu.wpi.first.math.util.Units;
 import com.studica.frc.AHRS;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
@@ -36,6 +38,11 @@ public class DriveSubsystem extends SubsystemBase {
   private static final String kPoseYKey = "Drive/PoseY";
   private static final String kPoseHeadingDegKey = "Drive/PoseHeadingDeg";
   private static final String kDriveSummaryKey = "Drive/Summary";
+  private static final String kVisionRejectReasonKey = "Drive/VisionRejectReason";
+  private static final String kVisionMaxLinearSpeedKey = "Drive/VisionMaxLinearSpeedMps";
+  private static final String kVisionMaxAngularSpeedKey = "Drive/VisionMaxAngularSpeedDegPerSec";
+  private static final String kVisionMaxPoseDeltaKey = "Drive/VisionMaxPoseDeltaMeters";
+  private static final String kVisionMaxHeadingDeltaKey = "Drive/VisionMaxHeadingDeltaDeg";
 
   // Create MAXSwerveModules
   private final MAXSwerveModule m_frontLeft = new MAXSwerveModule(
@@ -68,8 +75,8 @@ public class DriveSubsystem extends SubsystemBase {
       : raw;
   }
 
-  // Odometry class for tracking robot pose
-  SwerveDriveOdometry m_odometry = new SwerveDriveOdometry(
+  // Pose estimator blends module/gyro odometry with AprilTag vision updates.
+  private final SwerveDrivePoseEstimator m_poseEstimator = new SwerveDrivePoseEstimator(
       DriveConstants.kDriveKinematics,
       getGyroRotation(),
       new SwerveModulePosition[] {
@@ -77,7 +84,10 @@ public class DriveSubsystem extends SubsystemBase {
           m_frontRight.getPosition(),
           m_rearLeft.getPosition(),
           m_rearRight.getPosition()
-      });
+      },
+      new Pose2d(),
+      VecBuilder.fill(0.05, 0.05, Units.degreesToRadians(2.5)),
+      VecBuilder.fill(0.7, 0.7, Units.degreesToRadians(12.0)));
 
   // Acceleration limiter: choose time to reach full linear/angular speed (seconds)
   private final DriveAccelerationLimiter m_accelLimiter = new DriveAccelerationLimiter(0.75, 0.75);
@@ -105,6 +115,11 @@ public class DriveSubsystem extends SubsystemBase {
 
     // Configure AutoBuilder last
     SmartDashboard.putBoolean(kDrivePublishAdvancedKey, false);
+    SmartDashboard.putString(kVisionRejectReasonKey, "none");
+    SmartDashboard.putNumber(kVisionMaxLinearSpeedKey, 2.5);
+    SmartDashboard.putNumber(kVisionMaxAngularSpeedKey, 240.0);
+    SmartDashboard.putNumber(kVisionMaxPoseDeltaKey, 1.5);
+    SmartDashboard.putNumber(kVisionMaxHeadingDeltaKey, 35.0);
   }
 
   //pathplanner: get gyro heading
@@ -162,7 +177,7 @@ public class DriveSubsystem extends SubsystemBase {
   public void resetPose(Pose2d pose) {
     // Reset your odometry / pose estimator to this pose.
     // Implementation depends on your odometry class / subsystem.
-    m_odometry.resetPosition(
+    m_poseEstimator.resetPosition(
           getGyroHeading(),
           new SwerveModulePosition[] {
              m_frontLeft.getPosition(),
@@ -199,7 +214,7 @@ public class DriveSubsystem extends SubsystemBase {
   @Override
   public void periodic() {
     // Update the odometry in the periodic block
-    m_odometry.update(
+    m_poseEstimator.update(
         getGyroRotation(),
         new SwerveModulePosition[] {
             m_frontLeft.getPosition(),
@@ -241,7 +256,7 @@ public class DriveSubsystem extends SubsystemBase {
    * @return The pose.
    */
   public Pose2d getPose() {
-    return m_odometry.getPoseMeters();
+    return m_poseEstimator.getEstimatedPosition();
   }
 
   /**
@@ -250,7 +265,7 @@ public class DriveSubsystem extends SubsystemBase {
    * @param pose The pose to which to set the odometry.
    */
   public void resetOdometry(Pose2d pose) {
-    m_odometry.resetPosition(
+    m_poseEstimator.resetPosition(
         getGyroRotation(),
         new SwerveModulePosition[] {
             m_frontLeft.getPosition(),
@@ -259,6 +274,50 @@ public class DriveSubsystem extends SubsystemBase {
             m_rearRight.getPosition()
         },
         pose);
+  }
+
+  public boolean shouldAcceptVisionMeasurement(Pose2d visionPose) {
+    if (visionPose == null) {
+      SmartDashboard.putString(kVisionRejectReasonKey, "null-pose");
+      return false;
+    }
+
+    ChassisSpeeds speeds = getRobotRelativeSpeeds();
+    double linearSpeedMps = Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
+    double angularSpeedDegPerSec = Math.toDegrees(Math.abs(speeds.omegaRadiansPerSecond));
+    double maxLinearSpeed = SmartDashboard.getNumber(kVisionMaxLinearSpeedKey, 2.5);
+    double maxAngularSpeed = SmartDashboard.getNumber(kVisionMaxAngularSpeedKey, 240.0);
+    if (linearSpeedMps > maxLinearSpeed) {
+      SmartDashboard.putString(kVisionRejectReasonKey, "linear-speed");
+      return false;
+    }
+    if (angularSpeedDegPerSec > maxAngularSpeed) {
+      SmartDashboard.putString(kVisionRejectReasonKey, "angular-speed");
+      return false;
+    }
+
+    Pose2d estimatedPose = getPose();
+    double poseDeltaMeters =
+        estimatedPose.getTranslation().getDistance(visionPose.getTranslation());
+    double headingDeltaDeg =
+        Math.abs(visionPose.getRotation().minus(estimatedPose.getRotation()).getDegrees());
+    double maxPoseDelta = SmartDashboard.getNumber(kVisionMaxPoseDeltaKey, 1.5);
+    double maxHeadingDelta = SmartDashboard.getNumber(kVisionMaxHeadingDeltaKey, 35.0);
+    if (poseDeltaMeters > maxPoseDelta) {
+      SmartDashboard.putString(kVisionRejectReasonKey, "pose-delta");
+      return false;
+    }
+    if (headingDeltaDeg > maxHeadingDelta) {
+      SmartDashboard.putString(kVisionRejectReasonKey, "heading-delta");
+      return false;
+    }
+
+    SmartDashboard.putString(kVisionRejectReasonKey, "accepted");
+    return true;
+  }
+
+  public void addVisionMeasurement(Pose2d visionPose, double timestampSeconds) {
+    m_poseEstimator.addVisionMeasurement(visionPose, timestampSeconds);
   }
 
   /**

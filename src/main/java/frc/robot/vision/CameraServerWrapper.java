@@ -14,6 +14,7 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import java.util.Comparator;
 import java.util.Optional;
@@ -27,6 +28,7 @@ public class CameraServerWrapper {
   private static final String kBestIdKey = "Vision/AprilTag/BestId";
   private static final String kDistanceMetersKey = "Vision/AprilTag/DistanceMeters";
   private static final String kDistanceFeetKey = "Vision/AprilTag/DistanceFeet";
+  private static final String kLineDistanceMetersKey = "Vision/AprilTag/LineDistanceMeters";
   private static final String kYawDegreesKey = "Vision/AprilTag/YawDegrees";
   private static final String kPoseXKey = "Vision/AprilTag/PoseX";
   private static final String kPoseYKey = "Vision/AprilTag/PoseY";
@@ -63,7 +65,17 @@ public class CameraServerWrapper {
   private volatile boolean processingThreadRunning = false;
   private volatile int connectedCameraCount = 0;
   private volatile boolean hasTarget = false;
-  private volatile double distanceMeters = 0.0;
+  private volatile double floorDistanceMeters = 0.0;
+  private volatile double lineDistanceMeters = 0.0;
+  private volatile VisionMeasurement latestVisionMeasurement;
+
+  public static record VisionMeasurement(
+      Pose2d pose,
+      double timestampSeconds,
+      double floorDistanceMeters,
+      double lineDistanceMeters,
+      double decisionMargin,
+      int tagId) {}
 
   public void initialize() {
     SmartDashboard.putBoolean(kReadEnabledKey, readEnabled);
@@ -71,6 +83,7 @@ public class CameraServerWrapper {
     SmartDashboard.putNumber(kBestIdKey, -1);
     SmartDashboard.putNumber(kDistanceMetersKey, 0.0);
     SmartDashboard.putNumber(kDistanceFeetKey, 0.0);
+    SmartDashboard.putNumber(kLineDistanceMetersKey, 0.0);
     SmartDashboard.putString(kVisionSummaryKey, "target:none");
     SmartDashboard.putBoolean(kVisionPublishAdvancedKey, false);
     SmartDashboard.putNumber(kProcessHzKey, CameraConstants.kVisionProcessHz);
@@ -175,6 +188,9 @@ public class CameraServerWrapper {
                 if (frameTime == 0 || frame.empty()) {
                   SmartDashboard.putBoolean(kHasTargetKey, false);
                   hasTarget = false;
+                  floorDistanceMeters = 0.0;
+                  lineDistanceMeters = 0.0;
+                  latestVisionMeasurement = null;
                   SmartDashboard.putBoolean(kFieldPoseValidKey, false);
                   SmartDashboard.putString(kVisionSummaryKey, "target:none");
                   sleepSeconds(0.01);
@@ -199,6 +215,9 @@ public class CameraServerWrapper {
     if (detections.length == 0) {
       SmartDashboard.putBoolean(kHasTargetKey, false);
       hasTarget = false;
+      floorDistanceMeters = 0.0;
+      lineDistanceMeters = 0.0;
+      latestVisionMeasurement = null;
       SmartDashboard.putBoolean(kFieldPoseValidKey, false);
       SmartDashboard.putString(kVisionSummaryKey, "target:none");
       return;
@@ -218,6 +237,9 @@ public class CameraServerWrapper {
     if (decisionMargin < minDecisionMargin) {
       SmartDashboard.putBoolean(kHasTargetKey, false);
       hasTarget = false;
+      floorDistanceMeters = 0.0;
+      lineDistanceMeters = 0.0;
+      latestVisionMeasurement = null;
       SmartDashboard.putBoolean(kFieldPoseValidKey, false);
       SmartDashboard.putString(
           kVisionSummaryKey,
@@ -229,6 +251,9 @@ public class CameraServerWrapper {
     if (cameraToTag == null) {
       SmartDashboard.putBoolean(kHasTargetKey, false);
       hasTarget = false;
+      floorDistanceMeters = 0.0;
+      lineDistanceMeters = 0.0;
+      latestVisionMeasurement = null;
       SmartDashboard.putBoolean(kFieldPoseValidKey, false);
       SmartDashboard.putString(kVisionSummaryKey, "target:bad-pose");
       return;
@@ -237,51 +262,69 @@ public class CameraServerWrapper {
     double xMeters = cameraToTag.getX();
     double yMeters = cameraToTag.getY();
     double zMeters = cameraToTag.getZ();
-    double distanceMeters = Math.sqrt(xMeters * xMeters + yMeters * yMeters + zMeters * zMeters);
+    double floorDistanceMeters = Math.hypot(xMeters, yMeters);
+    double lineDistanceMeters = Math.sqrt(xMeters * xMeters + yMeters * yMeters + zMeters * zMeters);
     double yawDegrees = Math.toDegrees(Math.atan2(yMeters, xMeters));
+    Optional<Pose2d> fieldToRobot2d = estimateFieldRelativeRobotPose(bestDetection, cameraToTag);
 
     hasTarget = true;
-    this.distanceMeters = distanceMeters;
+    this.floorDistanceMeters = floorDistanceMeters;
+    this.lineDistanceMeters = lineDistanceMeters;
     SmartDashboard.putBoolean(kHasTargetKey, true);
     SmartDashboard.putNumber(kBestIdKey, bestDetection.getId());
-    SmartDashboard.putNumber(kDistanceMetersKey, distanceMeters);
-    SmartDashboard.putNumber(kDistanceFeetKey, Units.metersToFeet(distanceMeters));
+    SmartDashboard.putNumber(kDistanceMetersKey, floorDistanceMeters);
+    SmartDashboard.putNumber(kDistanceFeetKey, Units.metersToFeet(floorDistanceMeters));
+    SmartDashboard.putNumber(kLineDistanceMetersKey, lineDistanceMeters);
     if (publishAdvanced) {
       SmartDashboard.putNumber(kYawDegreesKey, yawDegrees);
       SmartDashboard.putNumber(kPoseXKey, xMeters);
       SmartDashboard.putNumber(kPoseYKey, yMeters);
       SmartDashboard.putNumber(kPoseZKey, zMeters);
     }
-    publishDistanceCalibrationError(distanceMeters);
-
-    publishFieldRelativeRobotPose(bestDetection, cameraToTag);
+    publishDistanceCalibrationError(floorDistanceMeters);
+    if (fieldToRobot2d.isPresent()) {
+      Pose2d robotPose = fieldToRobot2d.get();
+      latestVisionMeasurement =
+          new VisionMeasurement(
+              robotPose,
+              Timer.getFPGATimestamp(),
+              floorDistanceMeters,
+              lineDistanceMeters,
+              decisionMargin,
+              bestDetection.getId());
+      publishFieldRelativeRobotPose(robotPose);
+    } else {
+      latestVisionMeasurement = null;
+      SmartDashboard.putBoolean(kFieldPoseValidKey, false);
+    }
     SmartDashboard.putString(
         kVisionSummaryKey,
         String.format(
             "id:%d d:%.2fm yaw:%.1f pose:%s",
             bestDetection.getId(),
-            distanceMeters,
+            floorDistanceMeters,
             yawDegrees,
             SmartDashboard.getBoolean(kFieldPoseValidKey, false) ? "ok" : "no"));
   }
 
-  private void publishFieldRelativeRobotPose(AprilTagDetection bestDetection, Transform3d cameraToTag) {
+  private Optional<Pose2d> estimateFieldRelativeRobotPose(
+      AprilTagDetection bestDetection, Transform3d cameraToTag) {
     if (fieldLayout == null) {
-      SmartDashboard.putBoolean(kFieldPoseValidKey, false);
-      return;
+      return Optional.empty();
     }
 
     Optional<Pose3d> tagPoseOpt = fieldLayout.getTagPose(bestDetection.getId());
     if (tagPoseOpt.isEmpty()) {
-      SmartDashboard.putBoolean(kFieldPoseValidKey, false);
-      return;
+      return Optional.empty();
     }
 
     Pose3d fieldToTag = tagPoseOpt.get();
     Pose3d fieldToCamera = fieldToTag.transformBy(cameraToTag.inverse());
     Pose3d fieldToRobot = fieldToCamera.transformBy(CameraConstants.kRobotToAprilTagCamera.inverse());
-    Pose2d fieldToRobot2d = fieldToRobot.toPose2d();
+    return Optional.of(fieldToRobot.toPose2d());
+  }
 
+  private void publishFieldRelativeRobotPose(Pose2d fieldToRobot2d) {
     SmartDashboard.putBoolean(kFieldPoseValidKey, true);
     SmartDashboard.putNumber(kFieldPoseXKey, fieldToRobot2d.getX());
     SmartDashboard.putNumber(kFieldPoseYKey, fieldToRobot2d.getY());
@@ -329,7 +372,15 @@ public class CameraServerWrapper {
   }
 
   public double getDistanceMeters() {
-    return distanceMeters;
+    return floorDistanceMeters;
+  }
+
+  public double getLineDistanceMeters() {
+    return lineDistanceMeters;
+  }
+
+  public Optional<VisionMeasurement> getLatestVisionMeasurement() {
+    return Optional.ofNullable(latestVisionMeasurement);
   }
 
   public void close() {

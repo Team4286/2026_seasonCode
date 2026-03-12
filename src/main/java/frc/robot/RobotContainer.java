@@ -70,6 +70,7 @@ public class RobotContainer {
   private GenericEntry m_driverControlsEntry;
   private GenericEntry m_shooterActiveEntry;
   private GenericEntry m_shooterSpeedPercentEntry;
+  private double m_lastVisionTimestampSeconds = Double.NEGATIVE_INFINITY;
 
   /**
    * The container for the robot. Contains subsystems, OI devices, and commands.
@@ -257,7 +258,21 @@ public class RobotContainer {
 
   public void periodic() {
     m_cameraServerWrapper.periodic();
+    applyVisionMeasurement();
     updateDriverControlsDashboard();
+  }
+
+  private void applyVisionMeasurement() {
+    m_cameraServerWrapper.getLatestVisionMeasurement().ifPresent(measurement -> {
+      if (measurement.timestampSeconds() <= m_lastVisionTimestampSeconds) {
+        return;
+      }
+
+      if (m_robotDrive.shouldAcceptVisionMeasurement(measurement.pose())) {
+        m_robotDrive.addVisionMeasurement(measurement.pose(), measurement.timestampSeconds());
+      }
+      m_lastVisionTimestampSeconds = measurement.timestampSeconds();
+    });
   }
 
   public void stopIntake() {

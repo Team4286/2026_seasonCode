@@ -27,7 +27,7 @@ public final class dataTable {
     // 3. Add more rows as needed, keeping them sorted by distance.
     // 4. Interpolation fills in the distances between tested rows.
     private static final ShotEntry[] SHOT_TABLE = {
-        new ShotEntry(1.00, 0.22, 0.28),
+        new ShotEntry(0, 0, 0),
   
     };
 
