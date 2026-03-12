@@ -1,0 +1,54 @@
+{
+  "version": "2025.0",
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 2.4270540364583337,
+        "y": 5.862056495949074
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 2.79103784923476,
+        "y": 5.942961102751801
+      },
+      "isLocked": false,
+      "linkedName": "hubRight"
+    },
+    {
+      "anchor": {
+        "x": 3.119770037615741,
+        "y": 7.377266131365741
+      },
+      "prevControl": {
+        "x": 2.864482697325922,
+        "y": 6.981538365129281
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": "tunnelTopRight"
+    }
+  ],
+  "rotationTargets": [],
+  "constraintZones": [],
+  "pointTowardsZones": [],
+  "eventMarkers": [],
+  "globalConstraints": {
+    "maxVelocity": 5.0,
+    "maxAcceleration": 5.0,
+    "maxAngularVelocity": 540.0,
+    "maxAngularAcceleration": 720.0,
+    "nominalVoltage": 12.0,
+    "unlimited": false
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": 0.0
+  },
+  "reversed": false,
+  "folder": null,
+  "idealStartingState": {
+    "velocity": 0,
+    "rotation": -39.66440548620534
+  },
+  "useDefaultConstraints": true
+}
