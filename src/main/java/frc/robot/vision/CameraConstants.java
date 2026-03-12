@@ -35,7 +35,7 @@ public final class CameraConstants {
   // Update for your real mount location and orientation.
   public static final Transform3d kRobotToAprilTagCamera =
                                         //forward/baclwards left/right up/down(from ground). / Is it rotated any?
-      new Transform3d(new Translation3d(0.25, 0.0, 0.50), new Rotation3d());
+      new Transform3d(new Translation3d(0.0127, 0.0762, 0.5588), new Rotation3d());
 
   private CameraConstants() {}
 
