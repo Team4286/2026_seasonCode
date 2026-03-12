@@ -14,6 +14,7 @@ import edu.wpi.first.math.trajectory.Trajectory;
 import edu.wpi.first.math.trajectory.TrajectoryConfig;
 import edu.wpi.first.math.trajectory.TrajectoryGenerator;
 import edu.wpi.first.networktables.GenericEntry;
+import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -33,10 +34,14 @@ import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.SwerveControllerCommand;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.button.JoystickButton;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.stream.Stream;
 
-import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
+import com.pathplanner.lib.commands.PathPlannerAuto;
 import frc.robot.vision.CameraServerWrapper;
 
 /*
@@ -96,8 +101,8 @@ public class RobotContainer {
                 -MathUtil.applyDeadband(m_driverController.getRightX(), OIConstants.kDriveDeadband)*getSpeedScale(),
                 m_fieldRelativeEnabled),
             m_robotDrive));
-    // pathplanner: build auto chooser and put on dashboard
-    autoChooser = AutoBuilder.buildAutoChooser();
+    // pathplanner: build chooser with only competition autos
+    autoChooser = buildCompetitionAutoChooser();
     SmartDashboard.putNumber(kShooterSpeedPercentKey, 0.75);
     configureDriverDashboard();
   }
@@ -250,6 +255,48 @@ public class RobotContainer {
   public Command getAutonomousCommand() {
     //pathplanner
     return autoChooser.getSelected();
+  }
+
+  private SendableChooser<Command> buildCompetitionAutoChooser() {
+    SendableChooser<Command> chooser = new SendableChooser<>();
+    List<String> autoNames = getCompetitionAutoNames();
+
+    if (autoNames.isEmpty()) {
+      chooser.setDefaultOption("No Comp Autos Found", null);
+      return chooser;
+    }
+
+    boolean defaultSet = false;
+    for (String autoName : autoNames) {
+      Command autoCommand = new PathPlannerAuto(autoName);
+      if (!defaultSet) {
+        chooser.setDefaultOption(autoName, autoCommand);
+        defaultSet = true;
+      } else {
+        chooser.addOption(autoName, autoCommand);
+      }
+    }
+
+    return chooser;
+  }
+
+  private List<String> getCompetitionAutoNames() {
+    Path autosDirectory = Filesystem.getDeployDirectory().toPath().resolve("pathplanner").resolve("autos");
+    if (!Files.isDirectory(autosDirectory)) {
+      return List.of();
+    }
+
+    try (Stream<Path> autoFiles = Files.list(autosDirectory)) {
+      return autoFiles
+          .map(path -> path.getFileName().toString())
+          .filter(fileName -> fileName.endsWith(".auto"))
+          .map(fileName -> fileName.substring(0, fileName.length() - ".auto".length()))
+          .filter(autoName -> autoName.startsWith("Comp-"))
+          .sorted()
+          .toList();
+    } catch (IOException exception) {
+      return List.of();
+    }
   }
 
   public void setAutoPidMode(boolean useLowPid){
