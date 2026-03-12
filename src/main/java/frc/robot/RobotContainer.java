@@ -63,6 +63,8 @@ public class RobotContainer {
   private boolean m_fieldRelativeEnabled = true;
   private boolean m_xPressLowersIntake = true;
   private boolean m_aPressStartsShooter = true;
+  private boolean m_intakeFeedReversed = false;
+  private boolean m_intakeFeedRunning = false;
   private final CameraServerWrapper m_cameraServerWrapper = new CameraServerWrapper();
   private static final String kShooterSpeedPercentKey = "Shooter/TestSpeedPercent";
   private GenericEntry m_driverControlsEntry;
@@ -101,6 +103,20 @@ public class RobotContainer {
 
   private void initializeIntakeOnBoot() {
     stopIntake();
+  }
+
+  private double getIntakeFeedPercent() {
+    return m_intakeFeedReversed ? 1.0 : -1.0;
+  }
+
+  private void setIntakeFeedRunning(boolean running) {
+    m_intakeFeedRunning = running;
+    if (running) {
+      m_intake.setFeedPercent(getIntakeFeedPercent());
+    } else {
+      m_intake.stopFeed();
+    }
+    updateDriverControlsDashboard();
   }
 
   private void registerNamedCommands() {
@@ -197,7 +213,16 @@ public class RobotContainer {
         }));
 
     new JoystickButton(m_driverController, XboxController.Button.kY.value)
-        .toggleOnTrue(m_intake.feedPercentCommand(-1));
+        .onTrue(new InstantCommand(() -> setIntakeFeedRunning(!m_intakeFeedRunning), m_intake));
+
+    new JoystickButton(m_driverController, XboxController.Button.kB.value)
+        .onTrue(new InstantCommand(() -> {
+          m_intakeFeedReversed = !m_intakeFeedReversed;
+          if (m_intakeFeedRunning) {
+            m_intake.setFeedPercent(getIntakeFeedPercent());
+          }
+          updateDriverControlsDashboard();
+        }, m_intake));
 
     new JoystickButton(m_driverController, XboxController.Button.kA.value)
         .onTrue(new InstantCommand(() -> {
@@ -237,6 +262,7 @@ public class RobotContainer {
 
   public void stopIntake() {
     m_intake.stopAll();
+    m_intakeFeedRunning = false;
   }
 
   private void configureDriverDashboard() {
@@ -277,6 +303,8 @@ public class RobotContainer {
   private String buildDriverControlsSummary() {
     String xAction = m_xPressLowersIntake ? "Lower intake" : "Raise intake";
     String aAction = m_aPressStartsShooter ? "Start shooter" : "Stop shooter";
+    String intakeFeedState = m_intakeFeedRunning ? "ON" : "OFF";
+    String intakeFeedDirection = m_intakeFeedReversed ? "Reverse" : "Forward";
     String shooterState = m_shooter.isShooting() ? "ON" : "OFF";
     String fieldRelativeState = m_fieldRelativeEnabled ? "ON" : "OFF";
     String visionReadState = m_cameraServerWrapper.isReadEnabled() ? "ON" : "OFF";
@@ -284,7 +312,8 @@ public class RobotContainer {
     return String.join(
         "\n",
         formatControlLine("X", xAction, m_driverController.getXButton()),
-        formatControlLine("Y", "Intake feed toggle", m_driverController.getYButton()),
+        formatControlLine("Y", "Intake feed " + intakeFeedState, m_driverController.getYButton()),
+        formatControlLine("B", "Intake direction " + intakeFeedDirection, m_driverController.getBButton()),
         formatControlLine("A", aAction + " (shooter " + shooterState + ")", m_driverController.getAButton()),
         formatControlLine("R1", "Swerve X (brake)", m_driverController.getRightBumperButton()),
         formatControlLine("Start", "Zero heading", m_driverController.getStartButton()),

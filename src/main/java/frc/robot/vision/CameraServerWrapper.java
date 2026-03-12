@@ -115,11 +115,10 @@ public class CameraServerWrapper {
   private boolean initializeAprilTagCamera() {
     CameraConstants.UsbCameraConfig cameraConfig = CameraConstants.kAprilTagCamera;
     try {
-      aprilTagCamera = new UsbCamera(cameraConfig.name(), cameraConfig.deviceIndex());
+      aprilTagCamera = CameraServer.startAutomaticCapture(cameraConfig.name(), cameraConfig.deviceIndex());
       aprilTagCamera.setResolution(cameraConfig.width(), cameraConfig.height());
       aprilTagCamera.setFPS(cameraConfig.fps());
       aprilTagCamera.setConnectionStrategy(readEnabled ? ConnectionStrategy.kKeepOpen : ConnectionStrategy.kForceClose);
-      CameraServer.addCamera(aprilTagCamera);
       aprilTagSink = CameraServer.getVideo(aprilTagCamera);
       return true;
     } catch (VideoException ex) {

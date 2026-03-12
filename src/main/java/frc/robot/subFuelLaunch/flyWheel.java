@@ -132,11 +132,7 @@ public class flyWheel extends SubsystemBase {
 
     // Starts shooting using distance-based RPM and feed recommendations.
     public void startShootingForDistanceMeters(double distanceM) {
-        double targetRpm = physicsCalc.requiredFlywheelRpmWithLut(distanceM);
-        if (Double.isNaN(targetRpm)) {
-            stopAll();
-            return;
-        }
+        double targetRpm = dataTable.flywheelTargetRpmForDistance(distanceM);
         double feedPercent = dataTable.feedPercentForDistance(distanceM);
         startShooting(targetRpm, feedPercent);
     }

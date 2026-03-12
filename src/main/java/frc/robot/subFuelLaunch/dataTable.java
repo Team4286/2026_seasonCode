@@ -1,76 +1,90 @@
 package frc.robot.subFuelLaunch;
 
-//these numbers will be chaged eventually.
-public class dataTable {
-    // Distances in meters for which we have tuned shooter values.
-    // TODO: Replace placeholder values with real practice data.
-    private static final double[] DISTANCE_M = {
-        1.0, 2.0, 3.0, 4.0
-    };
+import edu.wpi.first.math.MathUtil;
+import frc.robot.Constants.NeoMotorConstants;
 
-    // Velocity offsets are disabled in the current tuning approach.
-    // Keep this array for API compatibility with older code paths.
-    private static final double[] VELOCITY_OFFSET_MPS = {
-        0.0, 0.0, 0.0, 0.0
-    };
-
-    // Absolute flywheel RPM targets (empirical: "what made the shot").
-    // Starting values below are seeded from the current physics model.
-    private static final double[] FLYWHEEL_TARGET_RPM = {
-        1213.0, 1659.0, 2045.0, 2308.0
-    };
-
-    // Corresponding feed motor open-loop output [-1.0, 1.0].
-    private static final double[] FEED_PERCENT = {
-        0.28, 0.32, 0.36, 0.40
-    };
-
-    // Additive launch speed correction vs. pure physics model.
-    public static double velocityOffsetMps(double distanceM) {
-        return interpolate(distanceM, DISTANCE_M, VELOCITY_OFFSET_MPS);
+// Distance-based shooter tuning table.
+// Update the entries below after test shots. Distances are meters from the camera/target pipeline.
+public final class dataTable {
+    private dataTable() {
     }
 
-    // Legacy offset API retained for compatibility. Returns zero because
-    // tuning now uses absolute RPM targets by distance.
+    private static final class ShotEntry {
+        final double distanceMeters;
+        final double flywheelPercent;
+        final double feedPercent;
+
+        ShotEntry(double distanceMeters, double flywheelPercent, double feedPercent) {
+            this.distanceMeters = distanceMeters;
+            this.flywheelPercent = flywheelPercent;
+            this.feedPercent = feedPercent;
+        }
+    }
+
+    // Tuning workflow:
+    // 1. Measure or read target distance in meters.
+    // 2. Find the closest entry below and change flywheelPercent/feedPercent.
+    // 3. Add more rows as needed, keeping them sorted by distance.
+    // 4. Interpolation fills in the distances between tested rows.
+    private static final ShotEntry[] SHOT_TABLE = {
+        new ShotEntry(1.00, 0.22, 0.28),
+  
+    };
+
+    public static double flywheelPercentForDistance(double distanceM) {
+        return interpolatePercent(distanceM, true);
+    }
+
+    public static double flywheelTargetRpmForDistance(double distanceM) {
+        return flywheelPercentForDistance(distanceM) * NeoMotorConstants.kFreeSpeedRpm;
+    }
+
+    public static double feedPercentForDistance(double distanceM) {
+        return interpolatePercent(distanceM, false);
+    }
+
+    // Legacy compatibility with the older physics-mix path.
+    public static double velocityOffsetMps(double distanceM) {
+        return 0.0;
+    }
+
     public static double flywheelRpmOffset(double distanceM) {
         return 0.0;
     }
 
-    // Absolute flywheel RPM command for a given shot distance.
-    public static double flywheelTargetRpmForDistance(double distanceM) {
-        return Math.max(0.0, interpolate(distanceM, DISTANCE_M, FLYWHEEL_TARGET_RPM));
-    }
-
-    // Feed output recommendation for a given shot distance.
-    public static double feedPercentForDistance(double distanceM) {
-        return clamp(interpolate(distanceM, DISTANCE_M, FEED_PERCENT), -1.0, 1.0);
-    }
-
-    // Piecewise-linear interpolation with endpoint clamping.
-    private static double interpolate(double x, double[] xs, double[] ys) {
-        if (xs.length != ys.length || xs.length == 0) {
+    private static double interpolatePercent(double distanceM, boolean useFlywheelPercent) {
+        if (SHOT_TABLE.length == 0) {
             return 0.0;
         }
-        if (x <= xs[0]) {
-            return ys[0];
+
+        if (distanceM <= SHOT_TABLE[0].distanceMeters) {
+            return clampPercent(selectPercent(SHOT_TABLE[0], useFlywheelPercent));
         }
-        int last = xs.length - 1;
-        if (x >= xs[last]) {
-            return ys[last];
+
+        int lastIndex = SHOT_TABLE.length - 1;
+        if (distanceM >= SHOT_TABLE[lastIndex].distanceMeters) {
+            return clampPercent(selectPercent(SHOT_TABLE[lastIndex], useFlywheelPercent));
         }
-        for (int i = 0; i < last; i++) {
-            double x0 = xs[i];
-            double x1 = xs[i + 1];
-            if (x >= x0 && x <= x1) {
-                double t = (x - x0) / (x1 - x0);
-                return ys[i] + t * (ys[i + 1] - ys[i]);
+
+        for (int i = 0; i < lastIndex; i++) {
+            ShotEntry start = SHOT_TABLE[i];
+            ShotEntry end = SHOT_TABLE[i + 1];
+            if (distanceM >= start.distanceMeters && distanceM <= end.distanceMeters) {
+                double t = (distanceM - start.distanceMeters) / (end.distanceMeters - start.distanceMeters);
+                double startPercent = selectPercent(start, useFlywheelPercent);
+                double endPercent = selectPercent(end, useFlywheelPercent);
+                return clampPercent(startPercent + t * (endPercent - startPercent));
             }
         }
+
         return 0.0;
     }
 
-    // Local clamp helper to keep outputs in allowed ranges.
-    private static double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
+    private static double selectPercent(ShotEntry entry, boolean useFlywheelPercent) {
+        return useFlywheelPercent ? entry.flywheelPercent : entry.feedPercent;
+    }
+
+    private static double clampPercent(double percent) {
+        return MathUtil.clamp(percent, -1.0, 1.0);
     }
 }
