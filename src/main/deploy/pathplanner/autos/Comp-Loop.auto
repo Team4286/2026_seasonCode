@@ -7,13 +7,19 @@
         {
           "type": "path",
           "data": {
-            "pathName": "startRight_to_hub_right"
+            "pathName": "BackUpFromMiddle"
           }
         },
         {
           "type": "named",
           "data": {
             "name": "lower"
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "waitTime": 0.5
           }
         },
         {
@@ -37,19 +43,13 @@
         {
           "type": "path",
           "data": {
-            "pathName": "hubRight_to_start_tunnel"
-          }
-        },
-        {
-          "type": "wait",
-          "data": {
-            "waitTime": 0.5
+            "pathName": "MiddleToBottom"
           }
         },
         {
           "type": "path",
           "data": {
-            "pathName": "tunnelTop"
+            "pathName": "throughBottomTunnelIn"
           }
         },
         {
@@ -59,27 +59,21 @@
           }
         },
         {
-          "type": "wait",
+          "type": "path",
           "data": {
-            "waitTime": 0.5
+            "pathName": "tunnelExitBottomToRefill"
           }
         },
         {
           "type": "path",
           "data": {
-            "pathName": "takeBallFromTunnel"
-          }
-        },
-        {
-          "type": "wait",
-          "data": {
-            "waitTime": 0.5
+            "pathName": "scoopUp"
           }
         },
         {
           "type": "path",
           "data": {
-            "pathName": "returnToTunnelTop"
+            "pathName": "RunBackToTop"
           }
         },
         {
@@ -91,19 +85,25 @@
         {
           "type": "wait",
           "data": {
+            "waitTime": 1.0
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "hopThroughTop"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "FinalShot"
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
             "waitTime": 0.5
-          }
-        },
-        {
-          "type": "path",
-          "data": {
-            "pathName": "returnFromTopTunnel"
-          }
-        },
-        {
-          "type": "path",
-          "data": {
-            "pathName": "tunnel_top_to_shoot"
           }
         },
         {

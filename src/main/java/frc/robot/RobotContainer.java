@@ -18,7 +18,6 @@ import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj.PS4Controller.Button;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import frc.robot.additionalSubSystems.intake;
@@ -52,6 +51,8 @@ import frc.robot.vision.CameraServerWrapper;
  */
 public class RobotContainer {
   private static final double kIntakeAxleMoveTimeoutSeconds = 1.5;
+  private static final double kAimAtHubToleranceDeg = 1.5;
+  private static final double kAimAtHubMaxTurnCommand = 0.35;
 
   // The robot's subsystems
   private final DriveSubsystem m_robotDrive = new DriveSubsystem();
@@ -76,12 +77,14 @@ public class RobotContainer {
   private GenericEntry m_shooterActiveEntry;
   private GenericEntry m_shooterSpeedPercentEntry;
   private double m_lastVisionTimestampSeconds = Double.NEGATIVE_INFINITY;
+  private final PIDController m_aimAtHubController = new PIDController(0.02, 0.0, 0.001);
 
   /**
    * The container for the robot. Contains subsystems, OI devices, and commands.
    */
   public RobotContainer() {
     m_cameraServerWrapper.initialize();
+    m_aimAtHubController.setTolerance(kAimAtHubToleranceDeg);
 
     initializeIntakeOnBoot();
     initializeShooterOnBoot();
@@ -197,9 +200,14 @@ public class RobotContainer {
    * {@link JoystickButton}.
    */
   private void configureButtonBindings() {
-    new JoystickButton(m_driverController, Button.kR1.value)
+    new JoystickButton(m_driverController, XboxController.Button.kRightBumper.value)
         .whileTrue(new RunCommand(
             () -> m_robotDrive.setX(),
+            m_robotDrive));
+
+    new JoystickButton(m_driverController, XboxController.Button.kLeftBumper.value)
+        .whileTrue(new RunCommand(
+            this::driveWhileAimingAtHub,
             m_robotDrive));
 
     new JoystickButton(m_driverController, XboxController.Button.kStart.value)
@@ -322,6 +330,28 @@ public class RobotContainer {
     });
   }
 
+  private void driveWhileAimingAtHub() {
+    double xSpeed = -MathUtil.applyDeadband(m_driverController.getLeftY(), OIConstants.kDriveDeadband) * getSpeedScale();
+    double ySpeed = -MathUtil.applyDeadband(m_driverController.getLeftX(), OIConstants.kDriveDeadband) * getSpeedScale();
+    double rotSpeed = 0.0;
+
+    if (m_cameraServerWrapper.hasTarget()) {
+      double yawErrorDeg = m_cameraServerWrapper.getYawDegrees();
+      rotSpeed = MathUtil.clamp(
+          -m_aimAtHubController.calculate(yawErrorDeg, 0.0),
+          -kAimAtHubMaxTurnCommand,
+          kAimAtHubMaxTurnCommand);
+
+      if (m_aimAtHubController.atSetpoint()) {
+        rotSpeed = 0.0;
+      }
+    } else {
+      m_aimAtHubController.reset();
+    }
+
+    m_robotDrive.drive(xSpeed, ySpeed, rotSpeed, m_fieldRelativeEnabled);
+  }
+
   public void stopIntake() {
     m_intake.stopAll();
     m_intakeFeedRunning = false;
@@ -377,6 +407,7 @@ public class RobotContainer {
         formatControlLine("Y", "Intake feed " + intakeFeedState, m_driverController.getYButton()),
         formatControlLine("B", "Intake direction " + intakeFeedDirection, m_driverController.getBButton()),
         formatControlLine("A", aAction + " (shooter " + shooterState + ")", m_driverController.getAButton()),
+        formatControlLine("L1", "Aim at hub", m_driverController.getLeftBumperButton()),
         formatControlLine("R1", "Swerve X (brake)", m_driverController.getRightBumperButton()),
         formatControlLine("Start", "Zero heading", m_driverController.getStartButton()),
         formatControlLine("POV Up", "Toggle vision read (vision " + visionReadState + ")", m_driverController.getPOV() == 0),

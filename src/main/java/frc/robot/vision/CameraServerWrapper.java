@@ -67,6 +67,7 @@ public class CameraServerWrapper {
   private volatile boolean hasTarget = false;
   private volatile double floorDistanceMeters = 0.0;
   private volatile double lineDistanceMeters = 0.0;
+  private volatile double yawDegrees = 0.0;
   private volatile VisionMeasurement latestVisionMeasurement;
 
   public static record VisionMeasurement(
@@ -190,6 +191,7 @@ public class CameraServerWrapper {
                   hasTarget = false;
                   floorDistanceMeters = 0.0;
                   lineDistanceMeters = 0.0;
+                  yawDegrees = 0.0;
                   latestVisionMeasurement = null;
                   SmartDashboard.putBoolean(kFieldPoseValidKey, false);
                   SmartDashboard.putString(kVisionSummaryKey, "target:none");
@@ -217,6 +219,7 @@ public class CameraServerWrapper {
       hasTarget = false;
       floorDistanceMeters = 0.0;
       lineDistanceMeters = 0.0;
+      yawDegrees = 0.0;
       latestVisionMeasurement = null;
       SmartDashboard.putBoolean(kFieldPoseValidKey, false);
       SmartDashboard.putString(kVisionSummaryKey, "target:none");
@@ -239,6 +242,7 @@ public class CameraServerWrapper {
       hasTarget = false;
       floorDistanceMeters = 0.0;
       lineDistanceMeters = 0.0;
+      yawDegrees = 0.0;
       latestVisionMeasurement = null;
       SmartDashboard.putBoolean(kFieldPoseValidKey, false);
       SmartDashboard.putString(
@@ -253,6 +257,7 @@ public class CameraServerWrapper {
       hasTarget = false;
       floorDistanceMeters = 0.0;
       lineDistanceMeters = 0.0;
+      yawDegrees = 0.0;
       latestVisionMeasurement = null;
       SmartDashboard.putBoolean(kFieldPoseValidKey, false);
       SmartDashboard.putString(kVisionSummaryKey, "target:bad-pose");
@@ -270,6 +275,7 @@ public class CameraServerWrapper {
     hasTarget = true;
     this.floorDistanceMeters = floorDistanceMeters;
     this.lineDistanceMeters = lineDistanceMeters;
+    this.yawDegrees = yawDegrees;
     SmartDashboard.putBoolean(kHasTargetKey, true);
     SmartDashboard.putNumber(kBestIdKey, bestDetection.getId());
     SmartDashboard.putNumber(kDistanceMetersKey, floorDistanceMeters);
@@ -377,6 +383,10 @@ public class CameraServerWrapper {
 
   public double getLineDistanceMeters() {
     return lineDistanceMeters;
+  }
+
+  public double getYawDegrees() {
+    return yawDegrees;
   }
 
   public Optional<VisionMeasurement> getLatestVisionMeasurement() {

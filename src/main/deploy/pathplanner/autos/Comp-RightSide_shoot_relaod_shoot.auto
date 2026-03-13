@@ -7,7 +7,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "startRight_to_hub_right"
+            "pathName": "start_bottom_to_hub"
           }
         },
         {
@@ -37,7 +37,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "hubRight_to_start_tunnel"
+            "pathName": "hub_to_bottom_tunnel"
           }
         },
         {
@@ -49,7 +49,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "tunnelTop"
+            "pathName": "throughBottomTunnelIn"
           }
         },
         {
@@ -67,7 +67,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "takeBallFromTunnel"
+            "pathName": "tunnelExitBottomToRefill"
           }
         },
         {
@@ -79,7 +79,13 @@
         {
           "type": "path",
           "data": {
-            "pathName": "returnToTunnelTop"
+            "pathName": "refillBottomTOTunnel"
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "waitTime": 0.5
           }
         },
         {
@@ -89,21 +95,15 @@
           }
         },
         {
-          "type": "wait",
+          "type": "path",
           "data": {
-            "waitTime": 0.5
+            "pathName": "backInTunnelBottom"
           }
         },
         {
           "type": "path",
           "data": {
-            "pathName": "returnFromTopTunnel"
-          }
-        },
-        {
-          "type": "path",
-          "data": {
-            "pathName": "tunnel_top_to_shoot"
+            "pathName": "tunnelToShoot"
           }
         },
         {
