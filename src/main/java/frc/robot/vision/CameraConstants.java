@@ -52,9 +52,10 @@ public final class CameraConstants {
 
   // Empirical correction on top of the corner-size estimate.
   // Fit from measured camera distance -> real field distance:
-  // 1.78 -> 1.8288, 2.47 -> 2.7432, 3.16 -> 3.6576, 4.06 -> 4.572
-  public static final double kAprilTagDistanceSlope = 1.2087;
-  public static final double kAprilTagDistanceInterceptMeters = -0.2656;
+  // 2.01 -> 2.1336, 2.36 -> 2.4384, 2.95 -> 3.0480, 3.24 -> 3.3528,
+  // 3.50 -> 3.6576, 3.80 -> 3.9624, 4.12 -> 4.2672
+  public static final double kAprilTagDistanceSlope = 1.0289;
+  public static final double kAprilTagDistanceInterceptMeters = 0.0349;
 
   // Robot-to-camera transform in robot coordinates.
   // Update for your real mount location and orientation.
