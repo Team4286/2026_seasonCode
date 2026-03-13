@@ -172,12 +172,25 @@ public class RobotContainer {
         .andThen(new InstantCommand(m_intake::stopAxle, m_intake));
   }
 
+  // for testing purposes
   private Command shootFromDashboardSpeedCommand() {
     return new InstantCommand(() -> {
       double flywheelSpeedPercent = getShooterSpeedPercent();
       m_shooter.startShootingAtPercent(flywheelSpeedPercent);
     }, m_shooter);
   }
+  // for match with datatable
+  private Command shootFromVisionDistanceCommand() {
+  return new InstantCommand(() -> {
+    if (m_cameraServerWrapper.hasTarget()) {
+      double distanceMeters = m_cameraServerWrapper.getDistanceMeters();
+      m_shooter.startShootingForDistanceMeters(distanceMeters);
+    } else {
+      double flywheelSpeedPercent = getShooterSpeedPercent();
+      m_shooter.startShootingAtPercent(flywheelSpeedPercent);
+    }
+  }, m_shooter);
+}
 
   private void initializeShooterOnBoot() {
     m_shooter.stopAll();
