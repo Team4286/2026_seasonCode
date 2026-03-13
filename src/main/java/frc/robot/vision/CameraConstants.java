@@ -38,7 +38,17 @@ public final class CameraConstants {
 
   // Manual image settings for the AprilTag camera to reduce motion blur and glare.
   public static final int kAprilTagBrightness = 35;
-  public static final int kAprilTagExposure = 20;
+  public static final int kAprilTagExposure = 30;
+
+  // Detector tuning for smaller/farther tags.
+  public static final int kAprilTagDetectorThreads = 2;
+  public static final float kAprilTagQuadDecimate = 1.0f;
+  public static final float kAprilTagQuadSigma = 0.0f;
+  public static final boolean kAprilTagRefineEdges = true;
+  public static final double kAprilTagDecodeSharpening = 0.5;
+  public static final int kAprilTagMinClusterPixels = 150;
+  public static final int kAprilTagMinWhiteBlackDiff = 3;
+  public static final boolean kAprilTagDeglitch = false;
 
   // Robot-to-camera transform in robot coordinates.
   // Update for your real mount location and orientation.

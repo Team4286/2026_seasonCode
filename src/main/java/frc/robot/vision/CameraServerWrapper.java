@@ -112,6 +112,21 @@ public class CameraServerWrapper {
 
     detector = new AprilTagDetector();
     detector.addFamily("tag36h11", 1);
+    AprilTagDetector.Config detectorConfig = new AprilTagDetector.Config();
+    detectorConfig.numThreads = CameraConstants.kAprilTagDetectorThreads;
+    detectorConfig.quadDecimate = CameraConstants.kAprilTagQuadDecimate;
+    detectorConfig.quadSigma = CameraConstants.kAprilTagQuadSigma;
+    detectorConfig.refineEdges = CameraConstants.kAprilTagRefineEdges;
+    detectorConfig.decodeSharpening = CameraConstants.kAprilTagDecodeSharpening;
+    detector.setConfig(detectorConfig);
+
+    AprilTagDetector.QuadThresholdParameters thresholdParameters =
+        new AprilTagDetector.QuadThresholdParameters();
+    thresholdParameters.minClusterPixels = CameraConstants.kAprilTagMinClusterPixels;
+    thresholdParameters.minWhiteBlackDiff = CameraConstants.kAprilTagMinWhiteBlackDiff;
+    thresholdParameters.deglitch = CameraConstants.kAprilTagDeglitch;
+    detector.setQuadThresholdParameters(thresholdParameters);
+
     poseEstimator =
         new AprilTagPoseEstimator(
             new AprilTagPoseEstimator.Config(
