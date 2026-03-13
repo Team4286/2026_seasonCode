@@ -429,16 +429,20 @@ public class CameraServerWrapper {
     }
 
     double focalPixels = (CameraConstants.kFxPixels + CameraConstants.kFyPixels) / 2.0;
-    double lineDistanceMeters =
+    double rawLineDistanceMeters =
         (CameraConstants.kAprilTagSizeMeters * focalPixels) / averageEdgePixels;
 
     double yawRadians =
         Math.atan2(detection.getCenterX() - CameraConstants.kCxPixels, CameraConstants.kFxPixels);
     double pitchRadians =
         Math.atan2(detection.getCenterY() - CameraConstants.kCyPixels, CameraConstants.kFyPixels);
+    double rawFloorDistanceMeters = rawLineDistanceMeters * Math.cos(pitchRadians);
     double floorDistanceMeters =
-        lineDistanceMeters * Math.cos(pitchRadians) + CameraConstants.kAprilTagDistanceOffsetMeters;
-    lineDistanceMeters += CameraConstants.kAprilTagDistanceOffsetMeters;
+        CameraConstants.kAprilTagDistanceSlope * rawFloorDistanceMeters
+            + CameraConstants.kAprilTagDistanceInterceptMeters;
+    double lineDistanceMeters =
+        CameraConstants.kAprilTagDistanceSlope * rawLineDistanceMeters
+            + CameraConstants.kAprilTagDistanceInterceptMeters;
 
     return new DistanceEstimate(
         floorDistanceMeters,

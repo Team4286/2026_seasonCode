@@ -50,8 +50,11 @@ public final class CameraConstants {
   public static final int kAprilTagMinWhiteBlackDiff = 3;
   public static final boolean kAprilTagDeglitch = false;
 
-  // Small empirical correction on top of the corner-size estimate.
-  public static final double kAprilTagDistanceOffsetMeters = 0.15;
+  // Empirical correction on top of the corner-size estimate.
+  // Fit from measured camera distance -> real field distance:
+  // 1.78 -> 1.8288, 2.47 -> 2.7432, 3.16 -> 3.6576, 4.06 -> 4.572
+  public static final double kAprilTagDistanceSlope = 1.2087;
+  public static final double kAprilTagDistanceInterceptMeters = -0.2656;
 
   // Robot-to-camera transform in robot coordinates.
   // Update for your real mount location and orientation.
