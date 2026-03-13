@@ -50,10 +50,6 @@ public final class CameraConstants {
   public static final int kAprilTagMinWhiteBlackDiff = 3;
   public static final boolean kAprilTagDeglitch = false;
 
-  // Temporary empirical scale correction until the camera is fully calibrated.
-  // Based on a measured 73 in (1.854 m) target distance reporting as 0.183 m.
-  public static final double kAprilTagDistanceScale = 10.13;
-
   // Robot-to-camera transform in robot coordinates.
   // Update for your real mount location and orientation.
   public static final Transform3d kRobotToAprilTagCamera =

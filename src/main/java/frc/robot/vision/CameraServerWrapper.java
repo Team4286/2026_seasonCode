@@ -14,7 +14,6 @@ import edu.wpi.first.cscore.VideoSource.ConnectionStrategy;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Transform3d;
-import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -362,14 +361,7 @@ public class CameraServerWrapper {
       return;
     }
 
-    Transform3d cameraToTag =
-        new Transform3d(
-            new Translation3d(
-                rawCameraToTag.getX() * CameraConstants.kAprilTagDistanceScale,
-                rawCameraToTag.getY() * CameraConstants.kAprilTagDistanceScale,
-                rawCameraToTag.getZ() * CameraConstants.kAprilTagDistanceScale),
-            rawCameraToTag.getRotation());
-
+    Transform3d cameraToTag = rawCameraToTag;
     double xMeters = cameraToTag.getX();
     double yMeters = cameraToTag.getY();
     double zMeters = cameraToTag.getZ();
