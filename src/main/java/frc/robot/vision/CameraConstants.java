@@ -37,8 +37,8 @@ public final class CameraConstants {
   public static final double kCyPixels = 240.0;
 
   // Manual image settings for the AprilTag camera to reduce motion blur and glare.
-  public static final int kAprilTagBrightness = 35;
-  public static final int kAprilTagExposure = 30;
+  public static final int kAprilTagBrightness = 40;
+  public static final int kAprilTagExposure = 35;
 
   // Detector tuning for smaller/farther tags.
   public static final int kAprilTagDetectorThreads = 2;
