@@ -50,6 +50,9 @@ public final class CameraConstants {
   public static final int kAprilTagMinWhiteBlackDiff = 3;
   public static final boolean kAprilTagDeglitch = false;
 
+  // Small empirical correction on top of the corner-size estimate.
+  public static final double kAprilTagDistanceOffsetMeters = 0.15;
+
   // Robot-to-camera transform in robot coordinates.
   // Update for your real mount location and orientation.
   public static final Transform3d kRobotToAprilTagCamera =
