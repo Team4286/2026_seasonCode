@@ -33,6 +33,7 @@ public class CameraServerWrapper {
   private static final String kDistanceFeetKey = "Vision/AprilTag/DistanceFeet";
   private static final String kLineDistanceMetersKey = "Vision/AprilTag/LineDistanceMeters";
   private static final String kYawDegreesKey = "Vision/AprilTag/YawDegrees";
+  private static final String kPitchDegreesKey = "Vision/AprilTag/PitchDegrees";
   private static final String kPoseXKey = "Vision/AprilTag/PoseX";
   private static final String kPoseYKey = "Vision/AprilTag/PoseY";
   private static final String kPoseZKey = "Vision/AprilTag/PoseZ";
@@ -94,6 +95,7 @@ public class CameraServerWrapper {
     SmartDashboard.putNumber(kDistanceMetersKey, 0.0);
     SmartDashboard.putNumber(kDistanceFeetKey, 0.0);
     SmartDashboard.putNumber(kLineDistanceMetersKey, 0.0);
+    SmartDashboard.putNumber(kPitchDegreesKey, 0.0);
     SmartDashboard.putString(kVisionSummaryKey, "target:none");
     SmartDashboard.putBoolean(kVisionPublishAdvancedKey, false);
     SmartDashboard.putNumber(kProcessHzKey, CameraConstants.kVisionProcessHz);
@@ -346,8 +348,8 @@ public class CameraServerWrapper {
       return;
     }
 
-    Transform3d rawCameraToTag = poseEstimator.estimate(bestDetection);
-    if (rawCameraToTag == null) {
+    DistanceEstimate distanceEstimate = estimateDistance(bestDetection);
+    if (!distanceEstimate.valid()) {
       SmartDashboard.putBoolean(kHasTargetKey, false);
       hasTarget = false;
       floorDistanceMeters = 0.0;
@@ -357,18 +359,19 @@ public class CameraServerWrapper {
       SmartDashboard.putBoolean(kFieldPoseValidKey, false);
       SmartDashboard.putString(
           kVisionSummaryKey,
-          String.format("tag seen, bad pose id:%d margin:%.1f", bestDetection.getId(), decisionMargin));
+          String.format("tag seen, invalid geometry id:%d margin:%.1f", bestDetection.getId(), decisionMargin));
       return;
     }
 
-    Transform3d cameraToTag = rawCameraToTag;
-    double xMeters = cameraToTag.getX();
-    double yMeters = cameraToTag.getY();
-    double zMeters = cameraToTag.getZ();
-    double floorDistanceMeters = Math.hypot(xMeters, yMeters);
-    double lineDistanceMeters = Math.sqrt(xMeters * xMeters + yMeters * yMeters + zMeters * zMeters);
-    double yawDegrees = Math.toDegrees(Math.atan2(yMeters, xMeters));
-    Optional<Pose2d> fieldToRobot2d = estimateFieldRelativeRobotPose(bestDetection, cameraToTag);
+    Transform3d rawCameraToTag = poseEstimator.estimate(bestDetection);
+    double floorDistanceMeters = distanceEstimate.floorDistanceMeters();
+    double lineDistanceMeters = distanceEstimate.lineDistanceMeters();
+    double yawDegrees = distanceEstimate.yawDegrees();
+    double pitchDegrees = distanceEstimate.pitchDegrees();
+    Optional<Pose2d> fieldToRobot2d =
+        rawCameraToTag == null
+            ? Optional.empty()
+            : estimateFieldRelativeRobotPose(bestDetection, rawCameraToTag);
 
     hasTarget = true;
     this.floorDistanceMeters = floorDistanceMeters;
@@ -379,11 +382,14 @@ public class CameraServerWrapper {
     SmartDashboard.putNumber(kDistanceMetersKey, floorDistanceMeters);
     SmartDashboard.putNumber(kDistanceFeetKey, Units.metersToFeet(floorDistanceMeters));
     SmartDashboard.putNumber(kLineDistanceMetersKey, lineDistanceMeters);
+    SmartDashboard.putNumber(kPitchDegreesKey, pitchDegrees);
     if (publishAdvanced) {
       SmartDashboard.putNumber(kYawDegreesKey, yawDegrees);
-      SmartDashboard.putNumber(kPoseXKey, xMeters);
-      SmartDashboard.putNumber(kPoseYKey, yMeters);
-      SmartDashboard.putNumber(kPoseZKey, zMeters);
+      if (rawCameraToTag != null) {
+        SmartDashboard.putNumber(kPoseXKey, rawCameraToTag.getX());
+        SmartDashboard.putNumber(kPoseYKey, rawCameraToTag.getY());
+        SmartDashboard.putNumber(kPoseZKey, rawCameraToTag.getZ());
+      }
     }
     publishDistanceCalibrationError(floorDistanceMeters);
     if (fieldToRobot2d.isPresent()) {
@@ -409,6 +415,52 @@ public class CameraServerWrapper {
             floorDistanceMeters,
             yawDegrees,
             SmartDashboard.getBoolean(kFieldPoseValidKey, false) ? "ok" : "no"));
+  }
+
+  private DistanceEstimate estimateDistance(AprilTagDetection detection) {
+    double edge01 = cornerDistancePixels(detection, 0, 1);
+    double edge12 = cornerDistancePixels(detection, 1, 2);
+    double edge23 = cornerDistancePixels(detection, 2, 3);
+    double edge30 = cornerDistancePixels(detection, 3, 0);
+    double averageEdgePixels = (edge01 + edge12 + edge23 + edge30) / 4.0;
+
+    if (averageEdgePixels <= 1e-6) {
+      return DistanceEstimate.invalid();
+    }
+
+    double focalPixels = (CameraConstants.kFxPixels + CameraConstants.kFyPixels) / 2.0;
+    double lineDistanceMeters =
+        (CameraConstants.kAprilTagSizeMeters * focalPixels) / averageEdgePixels;
+
+    double yawRadians =
+        Math.atan2(detection.getCenterX() - CameraConstants.kCxPixels, CameraConstants.kFxPixels);
+    double pitchRadians =
+        Math.atan2(detection.getCenterY() - CameraConstants.kCyPixels, CameraConstants.kFyPixels);
+    double floorDistanceMeters = lineDistanceMeters * Math.cos(pitchRadians);
+
+    return new DistanceEstimate(
+        floorDistanceMeters,
+        lineDistanceMeters,
+        Math.toDegrees(yawRadians),
+        Math.toDegrees(pitchRadians),
+        true);
+  }
+
+  private double cornerDistancePixels(AprilTagDetection detection, int first, int second) {
+    double dx = detection.getCornerX(second) - detection.getCornerX(first);
+    double dy = detection.getCornerY(second) - detection.getCornerY(first);
+    return Math.hypot(dx, dy);
+  }
+
+  private record DistanceEstimate(
+      double floorDistanceMeters,
+      double lineDistanceMeters,
+      double yawDegrees,
+      double pitchDegrees,
+      boolean valid) {
+    static DistanceEstimate invalid() {
+      return new DistanceEstimate(0.0, 0.0, 0.0, 0.0, false);
+    }
   }
 
   private Optional<Pose2d> estimateFieldRelativeRobotPose(
