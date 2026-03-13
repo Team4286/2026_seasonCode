@@ -9,33 +9,44 @@ public final class CameraConstants {
 
   // Processing camera (AprilTag detection) on USB index 1.
   public static final UsbCameraConfig kAprilTagCamera =
-      new UsbCameraConfig("AprilTagCam", 0, 320, 240, 12);
+      new UsbCameraConfig("AprilTagCam", 0, 640, 480, 15);
 
   // Driver camera feed on USB index 0.
   public static final UsbCameraConfig kDriverCamera =
       new UsbCameraConfig("DriverCam", 1, 320, 240, 12);
 
+  // Both USB cameras are mounted upside down, so the published streams and
+  // AprilTag processing frames are rotated 180 degrees in software.
+  public static final boolean kRotateAprilTagCamera180 = true;
+  public static final boolean kRotateDriverCamera180 = true;
+
   // CPU-friendly vision processing rate. The vision thread sleeps between updates.
-  public static final double kVisionProcessHz = 8.0;
+  public static final double kVisionProcessHz = 12.0;
 
   // Minimum decision margin to accept a detection for distance/pose updates.
-  public static final double kMinDecisionMargin = 35.0;
+  public static final double kMinDecisionMargin = 10.0;
 
   // AprilTag physical size in meters (default FRC tag size is 6.5 in).
   public static final double kAprilTagSizeMeters = 0.1651;
 
-  // Approximate intrinsics for LifeCam HD-3000 at 320x240.
+  // Approximate intrinsics for LifeCam HD-3000 at 640x480.
   // Replace with calibration values for best accuracy.
-  public static final double kFxPixels = 240.0;
-  public static final double kFyPixels = 240.0;
-  public static final double kCxPixels = 160.0;
-  public static final double kCyPixels = 120.0;
+  public static final double kFxPixels = 554.0;
+  public static final double kFyPixels = 554.0;
+  public static final double kCxPixels = 320.0;
+  public static final double kCyPixels = 240.0;
+
+  // Manual image settings for the AprilTag camera to reduce motion blur and glare.
+  public static final int kAprilTagBrightness = 35;
+  public static final int kAprilTagExposure = 20;
 
   // Robot-to-camera transform in robot coordinates.
   // Update for your real mount location and orientation.
   public static final Transform3d kRobotToAprilTagCamera =
-                                        //forward/baclwards left/right up/down(from ground). / Is it rotated any?
-      new Transform3d(new Translation3d(0.0127, 0.0762, 0.5588), new Rotation3d());
+      // forward/backward, left/right, up/down from ground, then camera rotation
+      new Transform3d(
+          new Translation3d(0.0127, 0.0762, 0.5588),
+          kRotateAprilTagCamera180 ? new Rotation3d(Math.PI, 0.0, 0.0) : new Rotation3d());
 
   private CameraConstants() {}
 

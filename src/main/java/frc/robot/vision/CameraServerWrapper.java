@@ -7,6 +7,7 @@ import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.apriltag.AprilTagPoseEstimator;
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.cscore.CvSink;
+import edu.wpi.first.cscore.CvSource;
 import edu.wpi.first.cscore.UsbCamera;
 import edu.wpi.first.cscore.VideoException;
 import edu.wpi.first.cscore.VideoSource.ConnectionStrategy;
@@ -18,12 +19,14 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import java.util.Comparator;
 import java.util.Optional;
+import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.imgproc.Imgproc;
 
 public class CameraServerWrapper {
   private static final String kReadEnabledKey = "Vision/ReadEnabled";
   private static final String kConnectedCountKey = "Vision/ConnectedCameraCount";
+  private static final String kDetectedKey = "Vision/AprilTag/Detected";
   private static final String kHasTargetKey = "Vision/AprilTag/HasTarget";
   private static final String kBestIdKey = "Vision/AprilTag/BestId";
   private static final String kDistanceMetersKey = "Vision/AprilTag/DistanceMeters";
@@ -56,10 +59,14 @@ public class CameraServerWrapper {
   private UsbCamera aprilTagCamera;
   private UsbCamera driverCamera;
   private CvSink aprilTagSink;
+  private CvSink driverSink;
+  private CvSource aprilTagDisplaySource;
+  private CvSource driverDisplaySource;
   private AprilTagDetector detector;
   private AprilTagPoseEstimator poseEstimator;
   private AprilTagFieldLayout fieldLayout;
   private Thread processingThread;
+  private Thread driverStreamThread;
 
   private boolean readEnabled = CameraConstants.kReadEnabledByDefault;
   private volatile boolean processingThreadRunning = false;
@@ -79,7 +86,9 @@ public class CameraServerWrapper {
       int tagId) {}
 
   public void initialize() {
+    processingThreadRunning = true;
     SmartDashboard.putBoolean(kReadEnabledKey, readEnabled);
+    SmartDashboard.putBoolean(kDetectedKey, false);
     SmartDashboard.putBoolean(kHasTargetKey, false);
     SmartDashboard.putNumber(kBestIdKey, -1);
     SmartDashboard.putNumber(kDistanceMetersKey, 0.0);
@@ -129,11 +138,19 @@ public class CameraServerWrapper {
   private boolean initializeAprilTagCamera() {
     CameraConstants.UsbCameraConfig cameraConfig = CameraConstants.kAprilTagCamera;
     try {
-      aprilTagCamera = CameraServer.startAutomaticCapture(cameraConfig.name(), cameraConfig.deviceIndex());
+      aprilTagCamera = new UsbCamera(cameraConfig.name() + "Raw", cameraConfig.deviceIndex());
       aprilTagCamera.setResolution(cameraConfig.width(), cameraConfig.height());
       aprilTagCamera.setFPS(cameraConfig.fps());
+      aprilTagCamera.setBrightness(CameraConstants.kAprilTagBrightness);
+      aprilTagCamera.setWhiteBalanceAuto();
+      aprilTagCamera.setExposureManual(CameraConstants.kAprilTagExposure);
       aprilTagCamera.setConnectionStrategy(readEnabled ? ConnectionStrategy.kKeepOpen : ConnectionStrategy.kForceClose);
+      CameraServer.addCamera(aprilTagCamera);
       aprilTagSink = CameraServer.getVideo(aprilTagCamera);
+      aprilTagDisplaySource = CameraServer.putVideo(
+          cameraConfig.name(),
+          cameraConfig.width(),
+          cameraConfig.height());
       return true;
     } catch (VideoException ex) {
       SmartDashboard.putString(
@@ -146,10 +163,19 @@ public class CameraServerWrapper {
   private boolean initializeDriverCamera() {
     CameraConstants.UsbCameraConfig cameraConfig = CameraConstants.kDriverCamera;
     try {
-      driverCamera = CameraServer.startAutomaticCapture(cameraConfig.name(), cameraConfig.deviceIndex());
+      driverCamera = new UsbCamera(cameraConfig.name() + "Raw", cameraConfig.deviceIndex());
       driverCamera.setResolution(cameraConfig.width(), cameraConfig.height());
       driverCamera.setFPS(cameraConfig.fps());
+      driverCamera.setWhiteBalanceAuto();
+      driverCamera.setExposureAuto();
       driverCamera.setConnectionStrategy(readEnabled ? ConnectionStrategy.kKeepOpen : ConnectionStrategy.kForceClose);
+      CameraServer.addCamera(driverCamera);
+      driverSink = CameraServer.getVideo(driverCamera);
+      driverDisplaySource = CameraServer.putVideo(
+          cameraConfig.name(),
+          cameraConfig.width(),
+          cameraConfig.height());
+      startDriverStreamThread();
       return true;
     } catch (VideoException ex) {
       SmartDashboard.putString(
@@ -160,11 +186,11 @@ public class CameraServerWrapper {
   }
 
   private void startProcessingThread() {
-    processingThreadRunning = true;
     processingThread =
         new Thread(
             () -> {
               Mat frame = new Mat();
+              Mat processedFrame = new Mat();
               Mat gray = new Mat();
               long lastCycleStartNanos = System.nanoTime();
 
@@ -187,6 +213,7 @@ public class CameraServerWrapper {
 
                 long frameTime = aprilTagSink.grabFrame(frame);
                 if (frameTime == 0 || frame.empty()) {
+                  SmartDashboard.putBoolean(kDetectedKey, false);
                   SmartDashboard.putBoolean(kHasTargetKey, false);
                   hasTarget = false;
                   floorDistanceMeters = 0.0;
@@ -199,12 +226,21 @@ public class CameraServerWrapper {
                   continue;
                 }
 
-                Imgproc.cvtColor(frame, gray, Imgproc.COLOR_BGR2GRAY);
+                rotateFrameIfNeeded(
+                    frame,
+                    processedFrame,
+                    CameraConstants.kRotateAprilTagCamera180);
+                if (aprilTagDisplaySource != null) {
+                  aprilTagDisplaySource.putFrame(processedFrame);
+                }
+
+                Imgproc.cvtColor(processedFrame, gray, Imgproc.COLOR_BGR2GRAY);
                 AprilTagDetection[] detections = detector.detect(gray);
                 publishBestDetection(detections);
               }
 
               frame.release();
+              processedFrame.release();
               gray.release();
             });
 
@@ -213,8 +249,50 @@ public class CameraServerWrapper {
     processingThread.start();
   }
 
+  private void startDriverStreamThread() {
+    if (driverSink == null) {
+      return;
+    }
+
+    driverStreamThread =
+        new Thread(
+            () -> {
+              Mat frame = new Mat();
+              Mat processedFrame = new Mat();
+
+              while (processingThreadRunning) {
+                if (!readEnabled || driverSink == null) {
+                  sleepSeconds(0.02);
+                  continue;
+                }
+
+                long frameTime = driverSink.grabFrame(frame);
+                if (frameTime == 0 || frame.empty()) {
+                  sleepSeconds(0.01);
+                  continue;
+                }
+
+                rotateFrameIfNeeded(
+                    frame,
+                    processedFrame,
+                    CameraConstants.kRotateDriverCamera180);
+                if (driverDisplaySource != null) {
+                  driverDisplaySource.putFrame(processedFrame);
+                }
+              }
+
+              frame.release();
+              processedFrame.release();
+            });
+
+    driverStreamThread.setName("DriverCameraStreamThread");
+    driverStreamThread.setDaemon(true);
+    driverStreamThread.start();
+  }
+
   private void publishBestDetection(AprilTagDetection[] detections) {
     if (detections.length == 0) {
+      SmartDashboard.putBoolean(kDetectedKey, false);
       SmartDashboard.putBoolean(kHasTargetKey, false);
       hasTarget = false;
       floorDistanceMeters = 0.0;
@@ -230,6 +308,8 @@ public class CameraServerWrapper {
         java.util.Arrays.stream(detections)
             .max(Comparator.comparingDouble(AprilTagDetection::getDecisionMargin))
             .orElse(detections[0]);
+    SmartDashboard.putBoolean(kDetectedKey, true);
+    SmartDashboard.putNumber(kBestIdKey, bestDetection.getId());
     double decisionMargin = bestDetection.getDecisionMargin();
     double minDecisionMargin =
         SmartDashboard.getNumber(kMinDecisionMarginKey, CameraConstants.kMinDecisionMargin);
@@ -247,7 +327,7 @@ public class CameraServerWrapper {
       SmartDashboard.putBoolean(kFieldPoseValidKey, false);
       SmartDashboard.putString(
           kVisionSummaryKey,
-          String.format("target:reject id:%d margin:%.1f", bestDetection.getId(), decisionMargin));
+          String.format("tag seen, reject id:%d margin:%.1f", bestDetection.getId(), decisionMargin));
       return;
     }
 
@@ -260,7 +340,9 @@ public class CameraServerWrapper {
       yawDegrees = 0.0;
       latestVisionMeasurement = null;
       SmartDashboard.putBoolean(kFieldPoseValidKey, false);
-      SmartDashboard.putString(kVisionSummaryKey, "target:bad-pose");
+      SmartDashboard.putString(
+          kVisionSummaryKey,
+          String.format("tag seen, bad pose id:%d margin:%.1f", bestDetection.getId(), decisionMargin));
       return;
     }
 
@@ -398,8 +480,19 @@ public class CameraServerWrapper {
     if (processingThread != null) {
       processingThread.interrupt();
     }
+    if (driverStreamThread != null) {
+      driverStreamThread.interrupt();
+    }
     if (detector != null) {
       detector.close();
+    }
+  }
+
+  private void rotateFrameIfNeeded(Mat sourceFrame, Mat outputFrame, boolean rotate180) {
+    if (rotate180) {
+      Core.rotate(sourceFrame, outputFrame, Core.ROTATE_180);
+    } else {
+      sourceFrame.copyTo(outputFrame);
     }
   }
 
