@@ -196,12 +196,14 @@ public class DriveSubsystem extends SubsystemBase {
     SwerveModuleState fr = m_frontRight.getState();
     SwerveModuleState bl = m_rearLeft.getState();
     SwerveModuleState br = m_rearRight.getState();
-    return DriveConstants.kDriveKinematics.toChassisSpeeds(fl, fr, bl, br);
+    ChassisSpeeds measuredSpeeds = DriveConstants.kDriveKinematics.toChassisSpeeds(fl, fr, bl, br);
+    return applyAutoTranslationFlip(measuredSpeeds);
   }
   
 // pathplanner: drive robot relative
   public void driveRobotRelative(ChassisSpeeds speeds) {
-    ChassisSpeeds discretizedSpeeds = ChassisSpeeds.discretize(speeds, 0.02);
+    ChassisSpeeds correctedSpeeds = applyAutoTranslationFlip(speeds);
+    ChassisSpeeds discretizedSpeeds = ChassisSpeeds.discretize(correctedSpeeds, 0.02);
     // Convert the desired chassis velocity into individual module states
     SwerveModuleState[] states = DriveConstants.kDriveKinematics.toSwerveModuleStates(discretizedSpeeds);
     SwerveDriveKinematics.desaturateWheelSpeeds(states, DriveConstants.kMaxSpeedMetersPerSecond);
@@ -417,5 +419,16 @@ public class DriveSubsystem extends SubsystemBase {
    */
   public double getTurnRate() {
     return m_gyro.getRate() * (DriveConstants.kGyroReversed ? -1.0 : 1.0);
+  }
+
+  private ChassisSpeeds applyAutoTranslationFlip(ChassisSpeeds speeds) {
+    if (!DriveConstants.kAutoTranslationReversed) {
+      return speeds;
+    }
+
+    return new ChassisSpeeds(
+        -speeds.vxMetersPerSecond,
+        -speeds.vyMetersPerSecond,
+        speeds.omegaRadiansPerSecond);
   }
 }

@@ -57,6 +57,7 @@ public final class Constants {
     public static final int kRearRightTurningCanId = 19;
 
     public static final boolean kGyroReversed = false;
+    public static final boolean kAutoTranslationReversed = true;
   }
 
   public static final class ModuleConstants {
