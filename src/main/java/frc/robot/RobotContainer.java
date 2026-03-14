@@ -53,7 +53,6 @@ public class RobotContainer {
   private static final double kIntakeAxleMoveTimeoutSeconds = 1.5;
   private static final double kAimAtHubToleranceDeg = 1.5;
   private static final double kAimAtHubMaxTurnCommand = 0.35;
-  private static final boolean kUseVisionDistanceShooterByDefault = false;
 
   // The robot's subsystems
   private final DriveSubsystem m_robotDrive = new DriveSubsystem();
@@ -70,7 +69,6 @@ public class RobotContainer {
   private boolean m_fieldRelativeEnabled = true;
   private boolean m_xPressLowersIntake = true;
   private boolean m_aPressStartsShooter = true;
-  private boolean m_useVisionDistanceShooter = kUseVisionDistanceShooterByDefault;
   private boolean m_intakeFeedReversed = false;
   private boolean m_intakeFeedRunning = false;
   private final CameraServerWrapper m_cameraServerWrapper = new CameraServerWrapper();
@@ -149,7 +147,7 @@ public class RobotContainer {
 
     NamedCommands.registerCommand(
         "shoot",
-        selectedShootCommand());
+        shootFromVisionDistanceCommand());
 
     NamedCommands.registerCommand(
         "shoot vision",
@@ -200,12 +198,6 @@ public class RobotContainer {
         m_shooter.startShootingAtPercent(flywheelSpeedPercent);
       }
     }, m_shooter);
-  }
-
-  private Command selectedShootCommand() {
-    return m_useVisionDistanceShooter
-        ? shootFromVisionDistanceCommand()
-        : shootFromDashboardSpeedCommand();
   }
 
   private void initializeShooterOnBoot() {
@@ -275,7 +267,7 @@ public class RobotContainer {
     new JoystickButton(m_driverController, XboxController.Button.kA.value)
         .onTrue(new InstantCommand(() -> {
           if (m_aPressStartsShooter) {
-            selectedShootCommand().schedule();
+            shootFromVisionDistanceCommand().schedule();
           } else {
             m_shooter.stopAll();
           }
@@ -291,10 +283,6 @@ public class RobotContainer {
 
     new Trigger(() -> m_driverController.getPOV() == 0)
         .onTrue(new InstantCommand(m_cameraServerWrapper::toggleReadEnabled));
-
-    new Trigger(() -> m_driverController.getPOV() == 90)
-        .onTrue(new InstantCommand(
-            this::toggleShooterMode));
   }
 
   // when running a command for autonomous, call this to get the command
@@ -436,7 +424,6 @@ public class RobotContainer {
     String intakeFeedState = m_intakeFeedRunning ? "ON" : "OFF";
     String intakeFeedDirection = m_intakeFeedReversed ? "Reverse" : "Forward";
     String shooterState = m_shooter.isShooting() ? "ON" : "OFF";
-    String shooterMode = m_useVisionDistanceShooter ? "Vision LUT" : "Dashboard";
     String fieldRelativeState = m_fieldRelativeEnabled ? "ON" : "OFF";
     String driveDirectionState = m_robotDrive.isDriveTranslationReversed() ? "REVERSED" : "NORMAL";
     String visionReadState = m_cameraServerWrapper.isReadEnabled() ? "ON" : "OFF";
@@ -446,23 +433,17 @@ public class RobotContainer {
         formatControlLine("X", xAction, m_driverController.getXButton()),
         formatControlLine("Y", "Intake feed " + intakeFeedState, m_driverController.getYButton()),
         formatControlLine("B", "Intake direction " + intakeFeedDirection, m_driverController.getBButton()),
-        formatControlLine("A", aAction + " (shooter " + shooterState + ", mode " + shooterMode + ")", m_driverController.getAButton()),
+        formatControlLine("A", aAction + " (shooter " + shooterState + ", mode Vision LUT)", m_driverController.getAButton()),
         formatControlLine("L1", "Aim at hub", m_driverController.getLeftBumperButton()),
         formatControlLine("R1", "Swerve X (brake)", m_driverController.getRightBumperButton()),
         formatControlLine("Back", "Drive direction " + driveDirectionState, m_driverController.getBackButton()),
         formatControlLine("Start", "Zero heading", m_driverController.getStartButton()),
         formatControlLine("POV Up", "Toggle vision read (vision " + visionReadState + ")", m_driverController.getPOV() == 0),
-        formatControlLine("POV Right", "Shooter mode " + shooterMode, m_driverController.getPOV() == 90),
         formatControlLine("POV Down", "Field relative " + fieldRelativeState, m_driverController.getPOV() == 180));
   }
 
   private void updateDriveTranslationReverse() {
     m_robotDrive.toggleDriveTranslationReversed();
-    updateDriverControlsDashboard();
-  }
-
-  private void toggleShooterMode() {
-    m_useVisionDistanceShooter = !m_useVisionDistanceShooter;
     updateDriverControlsDashboard();
   }
 
