@@ -27,8 +27,16 @@ public final class dataTable {
     // 3. Add more rows as needed, keeping them sorted by distance.
     // 4. Interpolation fills in the distances between tested rows.
     private static final ShotEntry[] SHOT_TABLE = {
+        // Replace these with your real tested values as you collect them.
+        // Example format:
+        // new ShotEntry(2.01, 0.58, 0.32),
+        // new ShotEntry(2.36, 0.61, 0.32),
+        // new ShotEntry(2.95, 0.67, 0.34),
+        // new ShotEntry(3.24, 0.70, 0.35),
+        // new ShotEntry(3.50, 0.74, 0.36),
+        // new ShotEntry(3.80, 0.78, 0.38),
+        // new ShotEntry(4.12, 0.82, 0.40),
         new ShotEntry(0, 0, 0),
-  
     };
 
     public static double flywheelPercentForDistance(double distanceM) {
