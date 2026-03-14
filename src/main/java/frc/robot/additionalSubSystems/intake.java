@@ -21,6 +21,7 @@ import frc.robot.Constants.IntakeConstants;
 // Intake subsystem template:
 // - axle motor: extends/retracts intake with 75:1 reduction
 // - feed motor: constant feed roller with 4:1 reduction
+// Interlocks stop the roller while the intake is moving toward the stowed position.
 public class intake extends SubsystemBase {
     // Hardware components.
     private final SparkMax m_intakeAxle;

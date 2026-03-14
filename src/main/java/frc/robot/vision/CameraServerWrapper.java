@@ -23,6 +23,7 @@ import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.imgproc.Imgproc;
 
+// Owns both USB camera streams and publishes AprilTag distance/yaw data to the dashboard.
 public class CameraServerWrapper {
   private static final String kReadEnabledKey = "Vision/ReadEnabled";
   private static final String kConnectedCountKey = "Vision/ConnectedCameraCount";

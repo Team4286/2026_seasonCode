@@ -76,18 +76,20 @@ public class RobotContainer {
   private GenericEntry m_driverControlsEntry;
   private GenericEntry m_shooterActiveEntry;
   private GenericEntry m_shooterSpeedPercentEntry;
-  private double m_lastVisionTimestampSeconds = Double.NEGATIVE_INFINITY;
   private final PIDController m_aimAtHubController = new PIDController(0.02, 0.0, 0.001);
 
   /**
    * The container for the robot. Contains subsystems, OI devices, and commands.
    */
   public RobotContainer() {
+    // Start camera processing before any commands read vision distance/yaw.
     m_cameraServerWrapper.initialize();
     m_aimAtHubController.setTolerance(kAimAtHubToleranceDeg);
 
+    // Bring mechanisms to a known stopped state on boot.
     initializeIntakeOnBoot();
     initializeShooterOnBoot();
+    // Register pathplanner/autonomous hooks once subsystems are ready.
     registerNamedCommands();
 
     // Configure the button bindings
@@ -120,6 +122,7 @@ public class RobotContainer {
 
   private void setIntakeFeedRunning(boolean running) {
     m_intakeFeedRunning = running;
+    // Reuse the stored direction flag so the operator can flip intake direction live.
     if (running) {
       m_intake.setFeedPercent(getIntakeFeedPercent());
     } else {
@@ -147,6 +150,7 @@ public class RobotContainer {
 
     NamedCommands.registerCommand(
         "shoot",
+        // Active path during tuning: uses the dashboard percent entry.
         shootFromDashboardSpeedCommand());
 
     NamedCommands.registerCommand(
@@ -159,6 +163,7 @@ public class RobotContainer {
   }
 
   private Command lowerIntakeCommand() {
+    // Run until the lower limit is hit, then stop the axle motor cleanly.
     return m_intake.axlePercentCommand(-0.25)
         .until(m_intake::isReverseLimitPressed)
         .withTimeout(kIntakeAxleMoveTimeoutSeconds)
@@ -166,28 +171,34 @@ public class RobotContainer {
   }
 
   private Command raiseIntakeCommand() {
+    // Mirror of lowerIntakeCommand(), but toward the stowed limit switch.
     return m_intake.axlePercentCommand(0.25)
         .until(m_intake::isForwardLimitPressed)
         .withTimeout(kIntakeAxleMoveTimeoutSeconds)
         .andThen(new InstantCommand(m_intake::stopAxle, m_intake));
   }
 
-  // Active shooter command path: uses dashboard speed while the lookup table is still being tuned.
+  // Active shooter command path while the lookup table is still being tuned.
+  // When the table is ready, swap callers over to shootFromVisionDistanceCommand().
   private Command shootFromDashboardSpeedCommand() {
     return new InstantCommand(() -> {
+      // Driver-selected percent is useful while shooter table values are still being tuned.
       double flywheelSpeedPercent = getShooterSpeedPercent();
       m_shooter.startShootingAtPercent(flywheelSpeedPercent);
     }, m_shooter);
   }
 
   // Ready-to-use lookup-table path once tuning is complete.
-  // Swap callers from shootFromDashboardSpeedCommand() to this method when you want vision distance control.
+  // This reads the camera's current target distance, looks up flywheel/feed values,
+  // and falls back to the dashboard speed if no target is available.
   private Command shootFromVisionDistanceCommand() {
     return new InstantCommand(() -> {
       if (m_cameraServerWrapper.hasTarget()) {
+        // Vision distance feeds directly into the shooter lookup table.
         double distanceMeters = m_cameraServerWrapper.getDistanceMeters();
         m_shooter.startShootingForDistanceMeters(distanceMeters);
       } else {
+        // Fallback keeps testing possible if vision drops out.
         double flywheelSpeedPercent = getShooterSpeedPercent();
         m_shooter.startShootingAtPercent(flywheelSpeedPercent);
       }
@@ -217,22 +228,19 @@ public class RobotContainer {
   private void configureButtonBindings() {
     new JoystickButton(m_driverController, XboxController.Button.kRightBumper.value)
         .whileTrue(new RunCommand(
+            // Point modules inward to resist being pushed around.
             () -> m_robotDrive.setX(),
             m_robotDrive));
 
     new JoystickButton(m_driverController, XboxController.Button.kLeftBumper.value)
         .whileTrue(new RunCommand(
+            // Driver keeps control of translation while heading is auto-corrected from vision yaw.
             this::driveWhileAimingAtHub,
             m_robotDrive));
 
     new JoystickButton(m_driverController, XboxController.Button.kStart.value)
         .onTrue(new InstantCommand(
             () -> m_robotDrive.zeroHeading(),
-            m_robotDrive));
-
-    new JoystickButton(m_driverController, XboxController.Button.kBack.value)
-        .onTrue(new InstantCommand(
-            () -> updateDriveTranslationReverse(),
             m_robotDrive));
 
     new JoystickButton(m_driverController, XboxController.Button.kX.value)
@@ -261,6 +269,7 @@ public class RobotContainer {
     new JoystickButton(m_driverController, XboxController.Button.kA.value)
         .onTrue(new InstantCommand(() -> {
           if (m_aPressStartsShooter) {
+            // Swap this to shootFromVisionDistanceCommand().schedule() when the LUT is ready.
             shootFromDashboardSpeedCommand().schedule();
           } else {
             m_shooter.stopAll();
@@ -281,7 +290,7 @@ public class RobotContainer {
 
   // when running a command for autonomous, call this to get the command
   public Command getAutonomousCommand() {
-    //pathplanner
+    // PathPlanner chooser already contains the competition-only autos.
     return autoChooser.getSelected();
   }
 
@@ -332,22 +341,9 @@ public class RobotContainer {
   }
 
   public void periodic() {
+    // Vision still updates dashboard/shooting values even though drivetrain pose fusion is disabled.
     m_cameraServerWrapper.periodic();
-    applyVisionMeasurement();
     updateDriverControlsDashboard();
-  }
-
-  private void applyVisionMeasurement() {
-    m_cameraServerWrapper.getLatestVisionMeasurement().ifPresent(measurement -> {
-      if (measurement.timestampSeconds() <= m_lastVisionTimestampSeconds) {
-        return;
-      }
-
-      if (m_robotDrive.shouldAcceptVisionMeasurement(measurement.pose())) {
-        m_robotDrive.addVisionMeasurement(measurement.pose(), measurement.timestampSeconds());
-      }
-      m_lastVisionTimestampSeconds = measurement.timestampSeconds();
-    });
   }
 
   private void driveWhileAimingAtHub() {
@@ -356,6 +352,7 @@ public class RobotContainer {
     double rotSpeed = 0.0;
 
     if (m_cameraServerWrapper.hasTarget()) {
+      // Positive yaw means the target is off-center; PID drives that error back to zero.
       double yawErrorDeg = m_cameraServerWrapper.getYawDegrees();
       rotSpeed = MathUtil.clamp(
           -m_aimAtHubController.calculate(yawErrorDeg, 0.0),
@@ -403,6 +400,7 @@ public class RobotContainer {
   }
 
   private double getShooterSpeedPercent() {
+    // Shuffleboard entry wins if present; SmartDashboard value is kept in sync as a fallback.
     double dashboardPercent = SmartDashboard.getNumber(kShooterSpeedPercentKey, 0.75);
     if (m_shooterSpeedPercentEntry == null) {
       return MathUtil.clamp(dashboardPercent, 0.0, 1.0);
@@ -419,7 +417,6 @@ public class RobotContainer {
     String intakeFeedDirection = m_intakeFeedReversed ? "Reverse" : "Forward";
     String shooterState = m_shooter.isShooting() ? "ON" : "OFF";
     String fieldRelativeState = m_fieldRelativeEnabled ? "ON" : "OFF";
-    String driveDirectionState = m_robotDrive.isDriveTranslationReversed() ? "REVERSED" : "NORMAL";
     String visionReadState = m_cameraServerWrapper.isReadEnabled() ? "ON" : "OFF";
 
     return String.join(
@@ -430,15 +427,10 @@ public class RobotContainer {
         formatControlLine("A", aAction + " (shooter " + shooterState + ", mode Vision LUT)", m_driverController.getAButton()),
         formatControlLine("L1", "Aim at hub", m_driverController.getLeftBumperButton()),
         formatControlLine("R1", "Swerve X (brake)", m_driverController.getRightBumperButton()),
-        formatControlLine("Back", "Drive direction " + driveDirectionState, m_driverController.getBackButton()),
+        formatControlLine("Back", "Zero heading", m_driverController.getBackButton()),
         formatControlLine("Start", "Zero heading", m_driverController.getStartButton()),
         formatControlLine("POV Up", "Toggle vision read (vision " + visionReadState + ")", m_driverController.getPOV() == 0),
         formatControlLine("POV Down", "Field relative " + fieldRelativeState, m_driverController.getPOV() == 180));
-  }
-
-  private void updateDriveTranslationReverse() {
-    m_robotDrive.toggleDriveTranslationReversed();
-    updateDriverControlsDashboard();
   }
 
   private String formatControlLine(String button, String action, boolean pressed) {

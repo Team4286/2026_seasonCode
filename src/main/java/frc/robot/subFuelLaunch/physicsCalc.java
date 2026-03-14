@@ -2,7 +2,7 @@ package frc.robot.subFuelLaunch;
 
 import frc.robot.Constants.FuelLaunchConstants;
 
-// basic physics calculations for fuel launch system
+// Projectile and RPM helper math for the shooter when testing physics-based estimates.
 public class physicsCalc {
     // Fixed launch geometry pulled from robot constants.
     public static final double LAUNCH_ANGLE_DEG = FuelLaunchConstants.kLaunchAngleDeg;

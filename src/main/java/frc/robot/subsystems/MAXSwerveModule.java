@@ -19,6 +19,7 @@ import com.revrobotics.ResetMode;
 
 import frc.robot.Configs;
 
+// Wrapper around one REV MAXSwerve module's drive and steering motors.
 public class MAXSwerveModule {
   private final SparkMax m_drivingSpark;
   private final SparkMax m_turningSpark;

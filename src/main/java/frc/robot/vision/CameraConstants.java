@@ -4,6 +4,7 @@ import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
 
+// Constants for USB camera selection, AprilTag tuning, and distance correction.
 public final class CameraConstants {
   public static final boolean kReadEnabledByDefault = true;
 

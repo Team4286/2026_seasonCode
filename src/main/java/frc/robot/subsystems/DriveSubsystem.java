@@ -30,6 +30,7 @@ import frc.robot.Constants.AutoConstants;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 
+// Swerve drivetrain subsystem with gyro-based odometry and PathPlanner integration.
 public class DriveSubsystem extends SubsystemBase {
   private static final String kDrivePublishAdvancedKey = "Drive/PublishAdvanced";
   private static final String kGyroConnectedKey = "Drive/GyroConnected";
