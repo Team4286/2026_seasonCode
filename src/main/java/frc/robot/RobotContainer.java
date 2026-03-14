@@ -147,14 +147,6 @@ public class RobotContainer {
 
     NamedCommands.registerCommand(
         "shoot",
-        shootFromVisionDistanceCommand());
-
-    NamedCommands.registerCommand(
-        "shoot vision",
-        shootFromVisionDistanceCommand());
-
-    NamedCommands.registerCommand(
-        "shoot dashboard",
         shootFromDashboardSpeedCommand());
 
     NamedCommands.registerCommand(
@@ -180,14 +172,16 @@ public class RobotContainer {
         .andThen(new InstantCommand(m_intake::stopAxle, m_intake));
   }
 
-  // for testing purposes
+  // Active shooter command path: uses dashboard speed while the lookup table is still being tuned.
   private Command shootFromDashboardSpeedCommand() {
     return new InstantCommand(() -> {
       double flywheelSpeedPercent = getShooterSpeedPercent();
       m_shooter.startShootingAtPercent(flywheelSpeedPercent);
     }, m_shooter);
   }
-  // for match with datatable
+
+  // Ready-to-use lookup-table path once tuning is complete.
+  // Swap callers from shootFromDashboardSpeedCommand() to this method when you want vision distance control.
   private Command shootFromVisionDistanceCommand() {
     return new InstantCommand(() -> {
       if (m_cameraServerWrapper.hasTarget()) {
@@ -267,7 +261,7 @@ public class RobotContainer {
     new JoystickButton(m_driverController, XboxController.Button.kA.value)
         .onTrue(new InstantCommand(() -> {
           if (m_aPressStartsShooter) {
-            shootFromVisionDistanceCommand().schedule();
+            shootFromDashboardSpeedCommand().schedule();
           } else {
             m_shooter.stopAll();
           }
