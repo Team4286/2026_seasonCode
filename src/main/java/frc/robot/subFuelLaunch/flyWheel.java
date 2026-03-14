@@ -25,7 +25,7 @@ public class flyWheel extends SubsystemBase {
     private static final double kFlywheelkD = 0.0;
 
     // Default feed output used while actively shooting.
-    private static final double kDefaultFeedPercent = 0.35;
+    private static final double kDefaultFeedPercent = 0.75;
     // Reverse output used during post-shot clear/jam clear.
     private static final double kDefaultClearPercent = -0.2;
     // Default duration to run reverse clear.

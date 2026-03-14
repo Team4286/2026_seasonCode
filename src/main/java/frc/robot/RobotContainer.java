@@ -108,7 +108,7 @@ public class RobotContainer {
             m_robotDrive));
     // pathplanner: build chooser with only competition autos
     autoChooser = buildCompetitionAutoChooser();
-    SmartDashboard.putNumber(kShooterSpeedPercentKey, 0.75);
+    SmartDashboard.putNumber(kShooterSpeedPercentKey, 1);
     configureDriverDashboard();
   }
 
@@ -151,7 +151,7 @@ public class RobotContainer {
     NamedCommands.registerCommand(
         "shoot",
         // Active path during tuning: uses the dashboard percent entry.
-        shootFromDashboardSpeedCommand());
+        shootFromVisionDistanceCommand());
 
     NamedCommands.registerCommand(
         "stop shoot",
@@ -270,7 +270,7 @@ public class RobotContainer {
         .onTrue(new InstantCommand(() -> {
           if (m_aPressStartsShooter) {
             // Swap this to shootFromVisionDistanceCommand().schedule() when the LUT is ready.
-            shootFromDashboardSpeedCommand().schedule();
+            shootFromVisionDistanceCommand().schedule();
           } else {
             m_shooter.stopAll();
           }
@@ -401,12 +401,15 @@ public class RobotContainer {
 
   private double getShooterSpeedPercent() {
     // Shuffleboard entry wins if present; SmartDashboard value is kept in sync as a fallback.
+    /*
     double dashboardPercent = SmartDashboard.getNumber(kShooterSpeedPercentKey, 0.75);
     if (m_shooterSpeedPercentEntry == null) {
       return MathUtil.clamp(dashboardPercent, 0.0, 1.0);
     }
     double tabPercent = MathUtil.clamp(m_shooterSpeedPercentEntry.getDouble(dashboardPercent), 0.0, 1.0);
     SmartDashboard.putNumber(kShooterSpeedPercentKey, tabPercent);
+     */
+    double tabPercent= 0.60;
     return tabPercent;
   }
 
