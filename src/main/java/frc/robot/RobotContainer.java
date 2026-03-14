@@ -151,7 +151,7 @@ public class RobotContainer {
     NamedCommands.registerCommand(
         "shoot",
         // Active path during tuning: uses the dashboard percent entry.
-        shootFromDashboardSpeedCommand());
+        shootFromVisionDistanceCommand());
 
     NamedCommands.registerCommand(
         "stop shoot",
@@ -270,7 +270,7 @@ public class RobotContainer {
         .onTrue(new InstantCommand(() -> {
           if (m_aPressStartsShooter) {
             // Swap this to shootFromVisionDistanceCommand().schedule() when the LUT is ready.
-            shootFromDashboardSpeedCommand().schedule();
+            shootFromVisionDistanceCommand().schedule();
           } else {
             m_shooter.stopAll();
           }
