@@ -76,6 +76,9 @@ public class RobotContainer {
   private GenericEntry m_driverControlsEntry;
   private GenericEntry m_shooterActiveEntry;
   private GenericEntry m_shooterSpeedPercentEntry;
+  private GenericEntry m_shooterTargetRpmEntry;
+  private GenericEntry m_shooterActualRpmEntry;
+  private GenericEntry m_shooterFeedActualRpmEntry;
   private GenericEntry m_intakeForwardPressCountEntry;
   private GenericEntry m_intakeReversePressCountEntry;
   private GenericEntry m_shooterStartPressCountEntry;
@@ -248,6 +251,13 @@ public class RobotContainer {
             () -> m_robotDrive.zeroHeading(),
             m_robotDrive));
 
+    new JoystickButton(m_driverController, XboxController.Button.kBack.value)
+        .onTrue(new InstantCommand(() -> {
+          m_shooterStopPressCount++;
+          m_shooter.stopAll();
+          updateDriverControlsDashboard();
+        }, m_shooter));
+
     new JoystickButton(m_driverController, XboxController.Button.kX.value)
         .onTrue(new InstantCommand(() -> {
           if (m_xPressLowersIntake) {
@@ -290,12 +300,6 @@ public class RobotContainer {
     new Trigger(() -> m_driverController.getPOV() == 0)
         .onTrue(new InstantCommand(m_cameraServerWrapper::toggleReadEnabled));
 
-    new Trigger(() -> m_driverController.getPOV() == 90)
-        .onTrue(new InstantCommand(() -> {
-          m_shooterStopPressCount++;
-          m_shooter.stopAll();
-          updateDriverControlsDashboard();
-        }, m_shooter));
   }
 
   // when running a command for autonomous, call this to get the command
@@ -402,6 +406,9 @@ public class RobotContainer {
     m_driverControlsEntry = driverTab.add("Driver Controls", "").withSize(6, 4).getEntry();
     m_shooterActiveEntry = driverTab.add("Shooter Active", false).withSize(2, 1).getEntry();
     m_shooterSpeedPercentEntry = driverTab.add("Flywheel Speed %", 0.75).withSize(2, 1).getEntry();
+    m_shooterTargetRpmEntry = driverTab.add("Shooter Target RPM", 0).withSize(2, 1).getEntry();
+    m_shooterActualRpmEntry = driverTab.add("Shooter Actual RPM", 0).withSize(2, 1).getEntry();
+    m_shooterFeedActualRpmEntry = driverTab.add("Feed Actual RPM", 0).withSize(2, 1).getEntry();
     m_intakeForwardPressCountEntry = driverTab.add("Intake Y Presses", 0).withSize(2, 1).getEntry();
     m_intakeReversePressCountEntry = driverTab.add("Intake B Presses", 0).withSize(2, 1).getEntry();
     m_shooterStartPressCountEntry = driverTab.add("Shooter A Presses", 0).withSize(2, 1).getEntry();
@@ -423,6 +430,15 @@ public class RobotContainer {
     m_driverControlsEntry.setString(buildDriverControlsSummary());
     if (m_shooterActiveEntry != null) {
       m_shooterActiveEntry.setBoolean(m_shooter.isShooting());
+    }
+    if (m_shooterTargetRpmEntry != null) {
+      m_shooterTargetRpmEntry.setDouble(m_shooter.getTargetFlywheelRPM());
+    }
+    if (m_shooterActualRpmEntry != null) {
+      m_shooterActualRpmEntry.setDouble(m_shooter.getFlyWheelSpeedRPM());
+    }
+    if (m_shooterFeedActualRpmEntry != null) {
+      m_shooterFeedActualRpmEntry.setDouble(m_shooter.getFeedSpeedRPM());
     }
     if (m_intakeForwardPressCountEntry != null) {
       m_intakeForwardPressCountEntry.setDouble(m_intakeForwardPressCount);
@@ -468,10 +484,9 @@ public class RobotContainer {
         formatControlLine("A", "Start shooter (shooter " + shooterState + ", mode Vision LUT)", m_driverController.getAButton()),
         formatControlLine("L1", "Aim at hub", m_driverController.getLeftBumperButton()),
         formatControlLine("R1", "Swerve X (brake)", m_driverController.getRightBumperButton()),
-        formatControlLine("Back", "Zero heading", m_driverController.getBackButton()),
+        formatControlLine("Back", "Stop shooter", m_driverController.getBackButton()),
         formatControlLine("Start", "Zero heading", m_driverController.getStartButton()),
         formatControlLine("POV Up", "Toggle vision read (vision " + visionReadState + ")", m_driverController.getPOV() == 0),
-        formatControlLine("POV Right", "Stop shooter", m_driverController.getPOV() == 90),
         formatControlLine("POV Down", "Field relative " + fieldRelativeState, m_driverController.getPOV() == 180));
   }
 
