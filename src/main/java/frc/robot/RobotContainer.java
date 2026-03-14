@@ -53,6 +53,7 @@ public class RobotContainer {
   private static final double kIntakeAxleMoveTimeoutSeconds = 1.5;
   private static final double kAimAtHubToleranceDeg = 1.5;
   private static final double kAimAtHubMaxTurnCommand = 0.35;
+  private static final boolean kTeleopTranslationReversed = true;
 
   // The robot's subsystems
   private final DriveSubsystem m_robotDrive = new DriveSubsystem();
@@ -68,7 +69,6 @@ public class RobotContainer {
   private final SendableChooser<Command> autoChooser;
   private boolean m_fieldRelativeEnabled = true;
   private boolean m_xPressLowersIntake = true;
-  private boolean m_aPressStartsShooter = true;
   private boolean m_intakeFeedRunning = false;
   private double m_intakeFeedPercent = 0.0;
   private final CameraServerWrapper m_cameraServerWrapper = new CameraServerWrapper();
@@ -76,6 +76,14 @@ public class RobotContainer {
   private GenericEntry m_driverControlsEntry;
   private GenericEntry m_shooterActiveEntry;
   private GenericEntry m_shooterSpeedPercentEntry;
+  private GenericEntry m_intakeForwardPressCountEntry;
+  private GenericEntry m_intakeReversePressCountEntry;
+  private GenericEntry m_shooterStartPressCountEntry;
+  private GenericEntry m_shooterStopPressCountEntry;
+  private int m_intakeForwardPressCount = 0;
+  private int m_intakeReversePressCount = 0;
+  private int m_shooterStartPressCount = 0;
+  private int m_shooterStopPressCount = 0;
   private final PIDController m_aimAtHubController = new PIDController(0.02, 0.0, 0.001);
 
   /**
@@ -100,11 +108,7 @@ public class RobotContainer {
         // The left stick controls translation of the robot.
         // Turning is controlled by the X axis of the right stick.
         new RunCommand(
-            () -> m_robotDrive.drive(
-                -MathUtil.applyDeadband(m_driverController.getLeftY(), OIConstants.kDriveDeadband)*getSpeedScale(),
-                -MathUtil.applyDeadband(m_driverController.getLeftX(), OIConstants.kDriveDeadband)*getSpeedScale(),
-                -MathUtil.applyDeadband(m_driverController.getRightX(), OIConstants.kDriveDeadband)*getSpeedScale(),
-                m_fieldRelativeEnabled),
+            this::driveFromController,
             m_robotDrive));
     // pathplanner: build chooser with only competition autos
     autoChooser = buildCompetitionAutoChooser();
@@ -256,20 +260,24 @@ public class RobotContainer {
         }));
 
     new JoystickButton(m_driverController, XboxController.Button.kY.value)
-        .onTrue(new InstantCommand(() -> toggleIntakeFeed(-1.0), m_intake));
+        .onTrue(new InstantCommand(() -> {
+          m_intakeForwardPressCount++;
+          toggleIntakeFeed(-1.0);
+          updateDriverControlsDashboard();
+        }, m_intake));
 
     new JoystickButton(m_driverController, XboxController.Button.kB.value)
-        .onTrue(new InstantCommand(() -> toggleIntakeFeed(1.0), m_intake));
+        .onTrue(new InstantCommand(() -> {
+          m_intakeReversePressCount++;
+          toggleIntakeFeed(1.0);
+          updateDriverControlsDashboard();
+        }, m_intake));
 
     new JoystickButton(m_driverController, XboxController.Button.kA.value)
         .onTrue(new InstantCommand(() -> {
-          if (m_aPressStartsShooter) {
-            // Swap this to shootFromVisionDistanceCommand().schedule() when the LUT is ready.
-            shootFromVisionDistanceCommand().schedule();
-          } else {
-            m_shooter.stopAll();
-          }
-          m_aPressStartsShooter = !m_aPressStartsShooter;
+          m_shooterStartPressCount++;
+          shootFromVisionDistanceCommand().schedule();
+          updateDriverControlsDashboard();
         }, m_shooter));
 
     new Trigger(() -> m_driverController.getPOV() == 180)
@@ -281,6 +289,13 @@ public class RobotContainer {
 
     new Trigger(() -> m_driverController.getPOV() == 0)
         .onTrue(new InstantCommand(m_cameraServerWrapper::toggleReadEnabled));
+
+    new Trigger(() -> m_driverController.getPOV() == 90)
+        .onTrue(new InstantCommand(() -> {
+          m_shooterStopPressCount++;
+          m_shooter.stopAll();
+          updateDriverControlsDashboard();
+        }, m_shooter));
   }
 
   // when running a command for autonomous, call this to get the command
@@ -341,6 +356,19 @@ public class RobotContainer {
     updateDriverControlsDashboard();
   }
 
+  private void driveFromController() {
+    double xInput = -MathUtil.applyDeadband(m_driverController.getLeftY(), OIConstants.kDriveDeadband) * getSpeedScale();
+    double yInput = -MathUtil.applyDeadband(m_driverController.getLeftX(), OIConstants.kDriveDeadband) * getSpeedScale();
+    double rotInput = -MathUtil.applyDeadband(m_driverController.getRightX(), OIConstants.kDriveDeadband) * getSpeedScale();
+
+    if (kTeleopTranslationReversed) {
+      xInput = -xInput;
+      yInput = -yInput;
+    }
+
+    m_robotDrive.drive(xInput, yInput, rotInput, m_fieldRelativeEnabled);
+  }
+
   private void driveWhileAimingAtHub() {
     double xSpeed = -MathUtil.applyDeadband(m_driverController.getLeftY(), OIConstants.kDriveDeadband) * getSpeedScale();
     double ySpeed = -MathUtil.applyDeadband(m_driverController.getLeftX(), OIConstants.kDriveDeadband) * getSpeedScale();
@@ -374,6 +402,10 @@ public class RobotContainer {
     m_driverControlsEntry = driverTab.add("Driver Controls", "").withSize(6, 4).getEntry();
     m_shooterActiveEntry = driverTab.add("Shooter Active", false).withSize(2, 1).getEntry();
     m_shooterSpeedPercentEntry = driverTab.add("Flywheel Speed %", 0.75).withSize(2, 1).getEntry();
+    m_intakeForwardPressCountEntry = driverTab.add("Intake Y Presses", 0).withSize(2, 1).getEntry();
+    m_intakeReversePressCountEntry = driverTab.add("Intake B Presses", 0).withSize(2, 1).getEntry();
+    m_shooterStartPressCountEntry = driverTab.add("Shooter A Presses", 0).withSize(2, 1).getEntry();
+    m_shooterStopPressCountEntry = driverTab.add("Shooter Stop Presses", 0).withSize(2, 1).getEntry();
     driverTab.addBoolean("Gyro Connected", m_robotDrive::isGyroConnected).withSize(2, 1);
     driverTab.addBoolean("Cameras Working", m_cameraServerWrapper::areCamerasWorking).withSize(2, 1);
     driverTab.addBoolean("Vision Working", m_cameraServerWrapper::hasTarget).withSize(2, 1);
@@ -391,6 +423,18 @@ public class RobotContainer {
     m_driverControlsEntry.setString(buildDriverControlsSummary());
     if (m_shooterActiveEntry != null) {
       m_shooterActiveEntry.setBoolean(m_shooter.isShooting());
+    }
+    if (m_intakeForwardPressCountEntry != null) {
+      m_intakeForwardPressCountEntry.setDouble(m_intakeForwardPressCount);
+    }
+    if (m_intakeReversePressCountEntry != null) {
+      m_intakeReversePressCountEntry.setDouble(m_intakeReversePressCount);
+    }
+    if (m_shooterStartPressCountEntry != null) {
+      m_shooterStartPressCountEntry.setDouble(m_shooterStartPressCount);
+    }
+    if (m_shooterStopPressCountEntry != null) {
+      m_shooterStopPressCountEntry.setDouble(m_shooterStopPressCount);
     }
   }
 
@@ -410,7 +454,6 @@ public class RobotContainer {
 
   private String buildDriverControlsSummary() {
     String xAction = m_xPressLowersIntake ? "Lower intake" : "Raise intake";
-    String aAction = m_aPressStartsShooter ? "Start shooter" : "Stop shooter";
     String intakeFeedState = m_intakeFeedRunning ? "ON" : "OFF";
     String intakeFeedDirection = m_intakeFeedPercent > 0.0 ? "Reverse" : "Forward";
     String shooterState = m_shooter.isShooting() ? "ON" : "OFF";
@@ -422,12 +465,13 @@ public class RobotContainer {
         formatControlLine("X", xAction, m_driverController.getXButton()),
         formatControlLine("Y", "Intake forward " + intakeFeedState, m_driverController.getYButton()),
         formatControlLine("B", "Intake reverse " + intakeFeedState, m_driverController.getBButton()),
-        formatControlLine("A", aAction + " (shooter " + shooterState + ", mode Vision LUT)", m_driverController.getAButton()),
+        formatControlLine("A", "Start shooter (shooter " + shooterState + ", mode Vision LUT)", m_driverController.getAButton()),
         formatControlLine("L1", "Aim at hub", m_driverController.getLeftBumperButton()),
         formatControlLine("R1", "Swerve X (brake)", m_driverController.getRightBumperButton()),
         formatControlLine("Back", "Zero heading", m_driverController.getBackButton()),
         formatControlLine("Start", "Zero heading", m_driverController.getStartButton()),
         formatControlLine("POV Up", "Toggle vision read (vision " + visionReadState + ")", m_driverController.getPOV() == 0),
+        formatControlLine("POV Right", "Stop shooter", m_driverController.getPOV() == 90),
         formatControlLine("POV Down", "Field relative " + fieldRelativeState, m_driverController.getPOV() == 180));
   }
 
