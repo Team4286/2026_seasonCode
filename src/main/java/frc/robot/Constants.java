@@ -123,8 +123,8 @@ public final class Constants {
   }
 
   public static final class FuelLaunchConstants {
-    public static final int kFlywheelCanId = 17;
-    public static final int kShooterFeedCanId = 7;
+    public static final int kFlywheelCanId = 7;
+    public static final int kShooterFeedCanId = 17;
 
     public static final double kLaunchAngleDeg = 80.0;
     public static final double kExitHeightIn = 25.0;
