@@ -91,7 +91,9 @@ public class DriveSubsystem extends SubsystemBase {
       VecBuilder.fill(0.7, 0.7, Units.degreesToRadians(12.0)));
 
   // Acceleration limiter: choose time to reach full linear/angular speed (seconds)
-  private final DriveAccelerationLimiter m_accelLimiter = new DriveAccelerationLimiter(0.75, 0.75);
+  private final DriveAccelerationLimiter m_accelLimiter = new DriveAccelerationLimiter(
+      DriveConstants.kDriveTimeToMaxLinearSeconds,
+      DriveConstants.kDriveTimeToMaxAngularSeconds);
   private double m_lastDriveTime = Double.NaN;
   // pathplanner; Configure robot from GUI settings
   RobotConfig config;

@@ -58,6 +58,9 @@ public final class Constants {
 
     public static final boolean kGyroReversed = false;
     public static final boolean kAutoTranslationReversed = true;
+    public static final boolean kTeleopTranslationReversed = true;
+    public static final double kDriveTimeToMaxLinearSeconds = 0.75;
+    public static final double kDriveTimeToMaxAngularSeconds = 0.75;
   }
 
   public static final class ModuleConstants {
@@ -131,6 +134,32 @@ public final class Constants {
     public static final double kFlywheelMotorToWheelRatio = 1.0;
     // Gear ratio from motor to feed wheel. 9:1 reduction means motor spins 9x feed wheel speed.
     public static final double kFeedMotorToWheelRatio = 9.0;
+
+    // Closed-loop gains for flywheel velocity control (Spark internal PID).
+    public static final double kFlywheelkP = 0.0002;
+    public static final double kFlywheelkI = 0.0;
+    public static final double kFlywheelkD = 0.0;
+
+    // Current limits for the shooter and feed motors.
+    public static final int kFlywheelCurrentLimitAmps = 60;
+    public static final int kFeedCurrentLimitAmps = 40;
+
+    // Default open-loop feed behavior while shooting and clearing.
+    public static final double kDefaultFeedPercent = 0.75;
+    public static final double kDefaultClearPercent = -0.2;
+    public static final double kDefaultClearDurationSec = 1.0;
+    public static final double kDefaultFeedDelaySec = 1.0;
+    public static final double kDefaultVisionShooterPercent = 0.70;
+  }
+
+  public static final class RobotContainerConstants {
+    private RobotContainerConstants() {
+    }
+
+    // Driver/command-layer tuning values.
+    public static final double kIntakeAxleMoveTimeoutSeconds = 1.5;
+    public static final double kAimAtHubToleranceDeg = 1.5;
+    public static final double kAimAtHubMaxTurnCommand = 0.35;
   }
 
   public static final class IntakeConstants {

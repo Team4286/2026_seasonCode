@@ -15,23 +15,11 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.FuelLaunchConstants;
+import frc.robot.Constants.NeoMotorConstants;
 
 // Flywheel subsystem with a main shooter motor and a feed motor.
 // Main flywheel uses closed-loop velocity control; feed uses open-loop percent output.
 public class flyWheel extends SubsystemBase {
-    // Closed-loop gains for flywheel velocity control (Spark internal PID).
-    private static final double kFlywheelkP = 0.0002;
-    private static final double kFlywheelkI = 0.0;
-    private static final double kFlywheelkD = 0.0;
-
-    // Default feed output used while actively shooting.
-    private static final double kDefaultFeedPercent = 0.75;
-    // Reverse output used during post-shot clear/jam clear.
-    private static final double kDefaultClearPercent = -0.2;
-    // Default duration to run reverse clear.
-    private static final double kDefaultClearDurationSec = 1.0;
-    // NEO free speed used for simple RPM->percent conversion helper.
-    private static final double kNeoFreeSpeedRpm = 5676.0;
     // Gear ratio from motor to feed wheel.
     private static final double kFeedMotorToWheelRatio = FuelLaunchConstants.kFeedMotorToWheelRatio;
 
@@ -58,9 +46,9 @@ public class flyWheel extends SubsystemBase {
     // Requested forward feed output while shooting.
     private double m_feedPercent = 0.0;
     // Reverse output and duration for clear cycle.
-    private double m_clearPercent = kDefaultClearPercent;
-    private double m_clearDurationSec = kDefaultClearDurationSec;
-    private double m_feedDelaySec = 0.5;
+    private double m_clearPercent = FuelLaunchConstants.kDefaultClearPercent;
+    private double m_clearDurationSec = FuelLaunchConstants.kDefaultClearDurationSec;
+    private double m_feedDelaySec = FuelLaunchConstants.kDefaultFeedDelaySec;
 
     // State flags used by periodic to arbitrate feed behavior.
     private boolean m_isShooting = false;
@@ -84,10 +72,13 @@ public class flyWheel extends SubsystemBase {
         flywheelConfig
                 .idleMode(IdleMode.kCoast)
                 // Higher current limit for the primary flywheel motor.
-                .smartCurrentLimit(60);
+                .smartCurrentLimit(FuelLaunchConstants.kFlywheelCurrentLimitAmps);
         flywheelConfig.closedLoop
                 .feedbackSensor(FeedbackSensor.kPrimaryEncoder)
-                .pid(kFlywheelkP, kFlywheelkI, kFlywheelkD)
+                .pid(
+                    FuelLaunchConstants.kFlywheelkP,
+                    FuelLaunchConstants.kFlywheelkI,
+                    FuelLaunchConstants.kFlywheelkD)
                 .outputRange(-1.0, 1.0);
         m_flyWheelSpark.configure(flywheelConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
@@ -95,7 +86,7 @@ public class flyWheel extends SubsystemBase {
         feedConfig
                 .idleMode(IdleMode.kBrake)
                 // Lower current limit is usually enough for feed/index.
-                .smartCurrentLimit(40);
+                .smartCurrentLimit(FuelLaunchConstants.kFeedCurrentLimitAmps);
         m_feedSpark.configure(feedConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     }
 
@@ -127,7 +118,7 @@ public class flyWheel extends SubsystemBase {
 
     // Starts shooting with default feed speed.
     public void startShooting(double flywheelTargetRpm) {
-        startShooting(flywheelTargetRpm, kDefaultFeedPercent);
+        startShooting(flywheelTargetRpm, FuelLaunchConstants.kDefaultFeedPercent);
     }
 
     // Starts shooting using distance-based RPM and feed recommendations.
@@ -140,8 +131,8 @@ public class flyWheel extends SubsystemBase {
     // Starts shooting using flywheel percent output target [0.0, 1.0].
     public void startShootingAtPercent(double flywheelPercent) {
         double clampedPercent = MathUtil.clamp(flywheelPercent, 0.0, 1.0);
-        double targetRpm = clampedPercent * kNeoFreeSpeedRpm;
-        startShooting(targetRpm, kDefaultFeedPercent);
+        double targetRpm = clampedPercent * NeoMotorConstants.kFreeSpeedRpm;
+        startShooting(targetRpm, FuelLaunchConstants.kDefaultFeedPercent);
     }
 
     // Distance convenience method where input is centimeters.
@@ -174,7 +165,7 @@ public class flyWheel extends SubsystemBase {
     public void setFeedSpeedRPM(double targetRPM) {
         // Approximation only: uses free-speed normalization.
         double motorRpm = targetRPM * kFeedMotorToWheelRatio;
-        setFeedPercent(motorRpm / kNeoFreeSpeedRpm);
+        setFeedPercent(motorRpm / NeoMotorConstants.kFreeSpeedRpm);
     }
 
     // Backwards-compatible API: schedules a non-blocking reverse clear.

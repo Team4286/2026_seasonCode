@@ -17,7 +17,6 @@ import edu.wpi.first.networktables.GenericEntry;
 import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import frc.robot.additionalSubSystems.intake;
@@ -25,6 +24,7 @@ import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.Constants.OIConstants;
 import frc.robot.Constants.FuelLaunchConstants;
+import frc.robot.Constants.RobotContainerConstants;
 import frc.robot.subsystems.DriveSubsystem;
 import frc.robot.subFuelLaunch.flyWheel;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -50,11 +50,6 @@ import frc.robot.vision.CameraServerWrapper;
  * (including subsystems, commands, and button mappings) should be declared here.
  */
 public class RobotContainer {
-  private static final double kIntakeAxleMoveTimeoutSeconds = 1.5;
-  private static final double kAimAtHubToleranceDeg = 1.5;
-  private static final double kAimAtHubMaxTurnCommand = 0.35;
-  private static final boolean kTeleopTranslationReversed = true;
-
   // The robot's subsystems
   private final DriveSubsystem m_robotDrive = new DriveSubsystem();
   private final intake m_intake = new intake();
@@ -72,10 +67,8 @@ public class RobotContainer {
   private boolean m_intakeFeedRunning = false;
   private double m_intakeFeedPercent = 0.0;
   private final CameraServerWrapper m_cameraServerWrapper = new CameraServerWrapper();
-  private static final String kShooterSpeedPercentKey = "Shooter/TestSpeedPercent";
   private GenericEntry m_driverControlsEntry;
   private GenericEntry m_shooterActiveEntry;
-  private GenericEntry m_shooterSpeedPercentEntry;
   private GenericEntry m_shooterTargetRpmEntry;
   private GenericEntry m_shooterActualRpmEntry;
   private GenericEntry m_shooterFeedActualRpmEntry;
@@ -95,7 +88,7 @@ public class RobotContainer {
   public RobotContainer() {
     // Start camera processing before any commands read vision distance/yaw.
     m_cameraServerWrapper.initialize();
-    m_aimAtHubController.setTolerance(kAimAtHubToleranceDeg);
+    m_aimAtHubController.setTolerance(RobotContainerConstants.kAimAtHubToleranceDeg);
 
     // Bring mechanisms to a known stopped state on boot.
     initializeIntakeOnBoot();
@@ -115,7 +108,6 @@ public class RobotContainer {
             m_robotDrive));
     // pathplanner: build chooser with only competition autos
     autoChooser = buildCompetitionAutoChooser();
-    SmartDashboard.putNumber(kShooterSpeedPercentKey, 1);
     configureDriverDashboard();
   }
 
@@ -158,7 +150,6 @@ public class RobotContainer {
 
     NamedCommands.registerCommand(
         "shoot",
-        // Active path during tuning: uses the dashboard percent entry.
         shootFromVisionDistanceCommand());
 
     NamedCommands.registerCommand(
@@ -174,7 +165,7 @@ public class RobotContainer {
     // Run until the lower limit is hit, then stop the axle motor cleanly.
     return m_intake.axlePercentCommand(-0.25)
         .until(m_intake::isReverseLimitPressed)
-        .withTimeout(kIntakeAxleMoveTimeoutSeconds)
+        .withTimeout(RobotContainerConstants.kIntakeAxleMoveTimeoutSeconds)
         .andThen(new InstantCommand(m_intake::stopAxle, m_intake));
   }
 
@@ -182,23 +173,13 @@ public class RobotContainer {
     // Mirror of lowerIntakeCommand(), but toward the stowed limit switch.
     return m_intake.axlePercentCommand(0.25)
         .until(m_intake::isForwardLimitPressed)
-        .withTimeout(kIntakeAxleMoveTimeoutSeconds)
+        .withTimeout(RobotContainerConstants.kIntakeAxleMoveTimeoutSeconds)
         .andThen(new InstantCommand(m_intake::stopAxle, m_intake));
   }
 
-  // Active shooter command path while the lookup table is still being tuned.
-  // When the table is ready, swap callers over to shootFromVisionDistanceCommand().
-  private Command shootFromDashboardSpeedCommand() {
-    return new InstantCommand(() -> {
-      // Driver-selected percent is useful while shooter table values are still being tuned.
-      double flywheelSpeedPercent = getShooterSpeedPercent();
-      m_shooter.startShootingAtPercent(flywheelSpeedPercent);
-    }, m_shooter);
-  }
-
-  // Ready-to-use lookup-table path once tuning is complete.
-  // This reads the camera's current target distance, looks up flywheel/feed values,
-  // and falls back to the dashboard speed if no target is available.
+  // Shooter path uses the camera target distance when available, and falls back to
+  // a fixed percent so the driver can still shoot when vision drops out.
+  // and falls back to a fixed default flywheel percent if no target is available.
   private Command shootFromVisionDistanceCommand() {
     return new InstantCommand(() -> {
       if (m_cameraServerWrapper.hasTarget()) {
@@ -206,9 +187,7 @@ public class RobotContainer {
         double distanceMeters = m_cameraServerWrapper.getDistanceMeters();
         m_shooter.startShootingForDistanceMeters(distanceMeters);
       } else {
-        // Fallback keeps testing possible if vision drops out.
-        double flywheelSpeedPercent = getShooterSpeedPercent();
-        m_shooter.startShootingAtPercent(flywheelSpeedPercent);
+        m_shooter.startShootingAtPercent(FuelLaunchConstants.kDefaultVisionShooterPercent);
       }
     }, m_shooter);
   }
@@ -365,7 +344,7 @@ public class RobotContainer {
     double yInput = -MathUtil.applyDeadband(m_driverController.getLeftX(), OIConstants.kDriveDeadband) * getSpeedScale();
     double rotInput = -MathUtil.applyDeadband(m_driverController.getRightX(), OIConstants.kDriveDeadband) * getSpeedScale();
 
-    if (kTeleopTranslationReversed) {
+    if (DriveConstants.kTeleopTranslationReversed) {
       xInput = -xInput;
       yInput = -yInput;
     }
@@ -383,8 +362,8 @@ public class RobotContainer {
       double yawErrorDeg = m_cameraServerWrapper.getYawDegrees();
       rotSpeed = MathUtil.clamp(
           -m_aimAtHubController.calculate(yawErrorDeg, 0.0),
-          -kAimAtHubMaxTurnCommand,
-          kAimAtHubMaxTurnCommand);
+          -RobotContainerConstants.kAimAtHubMaxTurnCommand,
+          RobotContainerConstants.kAimAtHubMaxTurnCommand);
 
       if (m_aimAtHubController.atSetpoint()) {
         rotSpeed = 0.0;
@@ -405,7 +384,6 @@ public class RobotContainer {
     ShuffleboardTab driverTab = Shuffleboard.getTab("Driver");
     m_driverControlsEntry = driverTab.add("Driver Controls", "").withSize(6, 4).getEntry();
     m_shooterActiveEntry = driverTab.add("Shooter Active", false).withSize(2, 1).getEntry();
-    m_shooterSpeedPercentEntry = driverTab.add("Flywheel Speed %", 0.75).withSize(2, 1).getEntry();
     m_shooterTargetRpmEntry = driverTab.add("Shooter Target RPM", 0).withSize(2, 1).getEntry();
     m_shooterActualRpmEntry = driverTab.add("Shooter Actual RPM", 0).withSize(2, 1).getEntry();
     m_shooterFeedActualRpmEntry = driverTab.add("Feed Actual RPM", 0).withSize(2, 1).getEntry();
@@ -454,24 +432,9 @@ public class RobotContainer {
     }
   }
 
-  private double getShooterSpeedPercent() {
-    // Shuffleboard entry wins if present; SmartDashboard value is kept in sync as a fallback.
-    /*
-    double dashboardPercent = SmartDashboard.getNumber(kShooterSpeedPercentKey, 0.75);
-    if (m_shooterSpeedPercentEntry == null) {
-      return MathUtil.clamp(dashboardPercent, 0.0, 1.0);
-    }
-    double tabPercent = MathUtil.clamp(m_shooterSpeedPercentEntry.getDouble(dashboardPercent), 0.0, 1.0);
-    SmartDashboard.putNumber(kShooterSpeedPercentKey, tabPercent);
-     */
-    double tabPercent= 0.60;
-    return tabPercent;
-  }
-
   private String buildDriverControlsSummary() {
     String xAction = m_xPressLowersIntake ? "Lower intake" : "Raise intake";
     String intakeFeedState = m_intakeFeedRunning ? "ON" : "OFF";
-    String intakeFeedDirection = m_intakeFeedPercent > 0.0 ? "Reverse" : "Forward";
     String shooterState = m_shooter.isShooting() ? "ON" : "OFF";
     String fieldRelativeState = m_fieldRelativeEnabled ? "ON" : "OFF";
     String visionReadState = m_cameraServerWrapper.isReadEnabled() ? "ON" : "OFF";
@@ -481,7 +444,7 @@ public class RobotContainer {
         formatControlLine("X", xAction, m_driverController.getXButton()),
         formatControlLine("Y", "Intake forward " + intakeFeedState, m_driverController.getYButton()),
         formatControlLine("B", "Intake reverse " + intakeFeedState, m_driverController.getBButton()),
-        formatControlLine("A", "Start shooter (shooter " + shooterState + ", mode Vision LUT)", m_driverController.getAButton()),
+        formatControlLine("A", "Start shooter (vision or 70% fallback, shooter " + shooterState + ")", m_driverController.getAButton()),
         formatControlLine("L1", "Aim at hub", m_driverController.getLeftBumperButton()),
         formatControlLine("R1", "Swerve X (brake)", m_driverController.getRightBumperButton()),
         formatControlLine("Back", "Stop shooter", m_driverController.getBackButton()),
