@@ -17,7 +17,7 @@ import edu.wpi.first.networktables.GenericEntry;
 import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import frc.robot.additionalSubSystems.intake;
@@ -38,21 +38,21 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import com.pathplanner.lib.auto.NamedCommands;
 import com.pathplanner.lib.commands.PathPlannerAuto;
 import frc.robot.vision.CameraServerWrapper;
 
-/*
+/*//// whiwiihwiuihsifhifhklfkj 
+string = new string base = Input
  * This class is where the bulk of the robot should be declared.  Since Command-based is a
  * "declarative" paradigm, very little robot logic should actually be handled in the {@link Robot}
  * periodic methods (other than the scheduler calls).  Instead, the structure of the robot
  * (including subsystems, commands, and button mappings) should be declared here.
  */
 public class RobotContainer {
-  private static final String kShooterFlywheelPercentKey = "Shooter/FlywheelPercent";
-
   // The robot's subsystems
   private final DriveSubsystem m_robotDrive = new DriveSubsystem();
   private final intake m_intake = new intake();
@@ -75,7 +75,9 @@ public class RobotContainer {
   private GenericEntry m_shooterTargetRpmEntry;
   private GenericEntry m_shooterActualRpmEntry;
   private GenericEntry m_shooterFeedActualRpmEntry;
-  private GenericEntry m_shooterFlywheelPercentEntry;
+  private GenericEntry m_visionShootingEnabledEntry;
+  private GenericEntry m_manualShooterPercentEntry;
+  private GenericEntry m_manualShooterPercentDisplayEntry;
   private GenericEntry m_intakeForwardPressCountEntry;
   private GenericEntry m_intakeReversePressCountEntry;
   private GenericEntry m_shooterStartPressCountEntry;
@@ -84,6 +86,8 @@ public class RobotContainer {
   private int m_intakeReversePressCount = 0;
   private int m_shooterStartPressCount = 0;
   private int m_shooterStopPressCount = 0;
+  private boolean m_visionShootingEnabled = true;
+  private double m_manualShooterPercent = FuelLaunchConstants.kDefaultVisionShooterPercent;
   private final PIDController m_aimAtHubController = new PIDController(0.02, 0.0, 0.001);
 
   /**
@@ -112,7 +116,6 @@ public class RobotContainer {
             m_robotDrive));
     // pathplanner: build chooser with only competition autos
     autoChooser = buildCompetitionAutoChooser();
-    SmartDashboard.putNumber(kShooterFlywheelPercentKey, FuelLaunchConstants.kDefaultVisionShooterPercent);
     configureDriverDashboard();
   }
 
@@ -155,7 +158,7 @@ public class RobotContainer {
 
     NamedCommands.registerCommand(
         "shoot",
-        shootFromVisionDistanceCommand());
+        shootFromDashboardModeCommand());
 
     NamedCommands.registerCommand(
         "stop shoot",
@@ -186,30 +189,46 @@ public class RobotContainer {
   // a fixed percent so the driver can still shoot when vision drops out.
   // and falls back to a fixed default flywheel percent if no target is available.
   private Command shootFromVisionDistanceCommand() {
-    return new InstantCommand(() -> {
-      if (m_cameraServerWrapper.hasTarget()) {
-        // Vision distance feeds directly into the shooter lookup table.
-        double distanceMeters = m_cameraServerWrapper.getDistanceMeters();
-        m_shooter.startShootingForDistanceMeters(distanceMeters);
-      } else {
-        m_shooter.startShootingAtPercent(getShooterFlywheelPercent());
-      }
-    }, m_shooter);
+    return new InstantCommand(this::startVisionBasedShooting, m_shooter);
   }
 
-  private double getShooterFlywheelPercent() {
-    double dashboardPercent = SmartDashboard.getNumber(
-        kShooterFlywheelPercentKey,
-        FuelLaunchConstants.kDefaultVisionShooterPercent);
-    if (m_shooterFlywheelPercentEntry == null) {
-      return MathUtil.clamp(dashboardPercent, 0.0, 1.0);
+  private Command shootFromDashboardModeCommand() {
+    return new InstantCommand(this::startSelectedShootingMode, m_shooter);
+  }
+
+  private void startSelectedShootingMode() {
+    if (isVisionShootingEnabled()) {
+      startVisionBasedShooting();
+    } else {
+      m_shooter.startShootingAtPercent(getManualShooterPercent());
     }
-    double tabPercent = MathUtil.clamp(
-        m_shooterFlywheelPercentEntry.getDouble(dashboardPercent),
-        0.0,
-        1.0);
-    SmartDashboard.putNumber(kShooterFlywheelPercentKey, tabPercent);
-    return tabPercent;
+  }
+
+  private void startVisionBasedShooting() {
+    if (m_cameraServerWrapper.hasTarget()) {
+      // Vision distance feeds directly into the shooter lookup table.
+      double distanceMeters = m_cameraServerWrapper.getDistanceMeters();
+      m_shooter.startShootingForDistanceMeters(distanceMeters);
+    } else {
+      m_shooter.startShootingAtPercent(FuelLaunchConstants.kDefaultVisionShooterPercent);
+    }
+  }
+
+  private boolean isVisionShootingEnabled() {
+    if (m_visionShootingEnabledEntry != null) {
+      m_visionShootingEnabled = m_visionShootingEnabledEntry.getBoolean(m_visionShootingEnabled);
+    }
+    return m_visionShootingEnabled;
+  }
+
+  private double getManualShooterPercent() {
+    if (m_manualShooterPercentEntry != null) {
+      m_manualShooterPercent = MathUtil.clamp(
+          m_manualShooterPercentEntry.getDouble(m_manualShooterPercent),
+          0.0,
+          1.0);
+    }
+    return m_manualShooterPercent;
   }
 
   private void initializeShooterOnBoot() {
@@ -285,7 +304,7 @@ public class RobotContainer {
     new JoystickButton(m_driverController, XboxController.Button.kA.value)
         .onTrue(new InstantCommand(() -> {
           m_shooterStartPressCount++;
-          shootFromVisionDistanceCommand().schedule();
+          shootFromDashboardModeCommand().schedule();
           updateDriverControlsDashboard();
         }, m_shooter));
 
@@ -404,11 +423,24 @@ public class RobotContainer {
     ShuffleboardTab driverTab = Shuffleboard.getTab("Driver");
     m_driverControlsEntry = driverTab.add("Driver Controls", "").withSize(6, 4).getEntry();
     m_shooterActiveEntry = driverTab.add("Shooter Active", false).withSize(2, 1).getEntry();
-    m_shooterFlywheelPercentEntry =
-        driverTab.add("Flywheel Speed %", FuelLaunchConstants.kDefaultVisionShooterPercent).withSize(2, 1).getEntry();
     m_shooterTargetRpmEntry = driverTab.add("Shooter Target RPM", 0).withSize(2, 1).getEntry();
     m_shooterActualRpmEntry = driverTab.add("Shooter Actual RPM", 0).withSize(2, 1).getEntry();
     m_shooterFeedActualRpmEntry = driverTab.add("Feed Actual RPM", 0).withSize(2, 1).getEntry();
+    m_visionShootingEnabledEntry = driverTab
+        .add("Vision Shooting Enabled", m_visionShootingEnabled)
+        .withWidget(BuiltInWidgets.kToggleSwitch)
+        .withSize(2, 1)
+        .getEntry();
+    m_manualShooterPercentEntry = driverTab
+        .add("Manual Shooter Percent", m_manualShooterPercent)
+        .withWidget(BuiltInWidgets.kNumberSlider)
+        .withProperties(Map.of("Min", 0.0, "Max", 1.0, "Block increment", 0.01))
+        .withSize(3, 1)
+        .getEntry();
+    m_manualShooterPercentDisplayEntry = driverTab
+        .add("Manual Shooter Percent Display", "")
+        .withSize(2, 1)
+        .getEntry();
     m_intakeForwardPressCountEntry = driverTab.add("Intake Y Presses", 0).withSize(2, 1).getEntry();
     m_intakeReversePressCountEntry = driverTab.add("Intake B Presses", 0).withSize(2, 1).getEntry();
     m_shooterStartPressCountEntry = driverTab.add("Shooter A Presses", 0).withSize(2, 1).getEntry();
@@ -427,6 +459,8 @@ public class RobotContainer {
     if (m_driverControlsEntry == null) {
       return;
     }
+    m_visionShootingEnabled = isVisionShootingEnabled();
+    m_manualShooterPercent = getManualShooterPercent();
     m_driverControlsEntry.setString(buildDriverControlsSummary());
     if (m_shooterActiveEntry != null) {
       m_shooterActiveEntry.setBoolean(m_shooter.isShooting());
@@ -439,6 +473,9 @@ public class RobotContainer {
     }
     if (m_shooterFeedActualRpmEntry != null) {
       m_shooterFeedActualRpmEntry.setDouble(m_shooter.getFeedSpeedRPM());
+    }
+    if (m_manualShooterPercentDisplayEntry != null) {
+      m_manualShooterPercentDisplayEntry.setString(String.format("%.0f%%", m_manualShooterPercent * 100.0));
     }
     if (m_intakeForwardPressCountEntry != null) {
       m_intakeForwardPressCountEntry.setDouble(m_intakeForwardPressCount);
@@ -460,13 +497,16 @@ public class RobotContainer {
     String shooterState = m_shooter.isShooting() ? "ON" : "OFF";
     String fieldRelativeState = m_fieldRelativeEnabled ? "ON" : "OFF";
     String visionReadState = m_cameraServerWrapper.isReadEnabled() ? "ON" : "OFF";
+    String shootingMode = m_visionShootingEnabled
+        ? "vision"
+        : String.format("manual %.0f%%", m_manualShooterPercent * 100.0);
 
     return String.join(
         "\n",
         formatControlLine("X", xAction, m_driverController.getXButton()),
         formatControlLine("Y", "Intake forward " + intakeFeedState, m_driverController.getYButton()),
         formatControlLine("B", "Intake reverse " + intakeFeedState, m_driverController.getBButton()),
-        formatControlLine("A", "Start shooter (vision or 70% fallback, shooter " + shooterState + ")", m_driverController.getAButton()),
+        formatControlLine("A", "Start shooter (" + shootingMode + ", shooter " + shooterState + ")", m_driverController.getAButton()),
         formatControlLine("L1", "Aim at hub", m_driverController.getLeftBumperButton()),
         formatControlLine("R1", "Swerve X (brake)", m_driverController.getRightBumperButton()),
         formatControlLine("Back", "Stop shooter", m_driverController.getBackButton()),
