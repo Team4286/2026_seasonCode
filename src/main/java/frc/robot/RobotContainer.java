@@ -17,6 +17,7 @@ import edu.wpi.first.networktables.GenericEntry;
 import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import frc.robot.additionalSubSystems.intake;
@@ -24,8 +25,10 @@ import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.Constants.OIConstants;
 import frc.robot.Constants.FuelLaunchConstants;
+import frc.robot.Constants.NeoMotorConstants;
 import frc.robot.Constants.RobotContainerConstants;
 import frc.robot.subsystems.DriveSubsystem;
+import frc.robot.subFuelLaunch.dataTable;
 import frc.robot.subFuelLaunch.flyWheel;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
@@ -50,6 +53,8 @@ import frc.robot.vision.CameraServerWrapper;
  * (including subsystems, commands, and button mappings) should be declared here.
  */
 public class RobotContainer {
+  private static final String kShooterFeedPercentKey = "Shooter/FeedPercent";
+
   // The robot's subsystems
   private final DriveSubsystem m_robotDrive = new DriveSubsystem();
   private final intake m_intake = new intake();
@@ -72,6 +77,7 @@ public class RobotContainer {
   private GenericEntry m_shooterTargetRpmEntry;
   private GenericEntry m_shooterActualRpmEntry;
   private GenericEntry m_shooterFeedActualRpmEntry;
+  private GenericEntry m_shooterFeedPercentEntry;
   private GenericEntry m_intakeForwardPressCountEntry;
   private GenericEntry m_intakeReversePressCountEntry;
   private GenericEntry m_shooterStartPressCountEntry;
@@ -108,6 +114,7 @@ public class RobotContainer {
             m_robotDrive));
     // pathplanner: build chooser with only competition autos
     autoChooser = buildCompetitionAutoChooser();
+    SmartDashboard.putNumber(kShooterFeedPercentKey, FuelLaunchConstants.kDefaultFeedPercent);
     configureDriverDashboard();
   }
 
@@ -182,14 +189,32 @@ public class RobotContainer {
   // and falls back to a fixed default flywheel percent if no target is available.
   private Command shootFromVisionDistanceCommand() {
     return new InstantCommand(() -> {
+      double feedPercent = getShooterFeedPercent();
       if (m_cameraServerWrapper.hasTarget()) {
         // Vision distance feeds directly into the shooter lookup table.
         double distanceMeters = m_cameraServerWrapper.getDistanceMeters();
-        m_shooter.startShootingForDistanceMeters(distanceMeters);
+        double targetRpm = dataTable.flywheelTargetRpmForDistance(distanceMeters);
+        m_shooter.startShooting(targetRpm, feedPercent);
       } else {
-        m_shooter.startShootingAtPercent(FuelLaunchConstants.kDefaultVisionShooterPercent);
+        double targetRpm = FuelLaunchConstants.kDefaultVisionShooterPercent * NeoMotorConstants.kFreeSpeedRpm;
+        m_shooter.startShooting(targetRpm, feedPercent);
       }
     }, m_shooter);
+  }
+
+  private double getShooterFeedPercent() {
+    double dashboardPercent = SmartDashboard.getNumber(
+        kShooterFeedPercentKey,
+        FuelLaunchConstants.kDefaultFeedPercent);
+    if (m_shooterFeedPercentEntry == null) {
+      return MathUtil.clamp(dashboardPercent, -1.0, 1.0);
+    }
+    double tabPercent = MathUtil.clamp(
+        m_shooterFeedPercentEntry.getDouble(dashboardPercent),
+        -1.0,
+        1.0);
+    SmartDashboard.putNumber(kShooterFeedPercentKey, tabPercent);
+    return tabPercent;
   }
 
   private void initializeShooterOnBoot() {
@@ -384,6 +409,7 @@ public class RobotContainer {
     ShuffleboardTab driverTab = Shuffleboard.getTab("Driver");
     m_driverControlsEntry = driverTab.add("Driver Controls", "").withSize(6, 4).getEntry();
     m_shooterActiveEntry = driverTab.add("Shooter Active", false).withSize(2, 1).getEntry();
+    m_shooterFeedPercentEntry = driverTab.add("Shooter Feed %", FuelLaunchConstants.kDefaultFeedPercent).withSize(2, 1).getEntry();
     m_shooterTargetRpmEntry = driverTab.add("Shooter Target RPM", 0).withSize(2, 1).getEntry();
     m_shooterActualRpmEntry = driverTab.add("Shooter Actual RPM", 0).withSize(2, 1).getEntry();
     m_shooterFeedActualRpmEntry = driverTab.add("Feed Actual RPM", 0).withSize(2, 1).getEntry();
