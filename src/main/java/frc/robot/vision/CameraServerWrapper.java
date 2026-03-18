@@ -438,12 +438,8 @@ public class CameraServerWrapper {
     double pitchRadians =
         Math.atan2(detection.getCenterY() - CameraConstants.kCyPixels, CameraConstants.kFyPixels);
     double rawFloorDistanceMeters = rawLineDistanceMeters * Math.cos(pitchRadians);
-    double floorDistanceMeters =
-        CameraConstants.kAprilTagDistanceSlope * rawFloorDistanceMeters
-            + CameraConstants.kAprilTagDistanceInterceptMeters;
-    double lineDistanceMeters =
-        CameraConstants.kAprilTagDistanceSlope * rawLineDistanceMeters
-            + CameraConstants.kAprilTagDistanceInterceptMeters;
+    double floorDistanceMeters = rawFloorDistanceMeters;
+    double lineDistanceMeters = rawLineDistanceMeters;
 
     return new DistanceEstimate(
         floorDistanceMeters,
