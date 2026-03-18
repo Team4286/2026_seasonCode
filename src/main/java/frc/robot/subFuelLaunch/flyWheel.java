@@ -53,6 +53,7 @@ public class flyWheel extends SubsystemBase {
     // State flags used by periodic to arbitrate feed behavior.
     private boolean m_isShooting = false;
     private boolean m_isClearingFeed = false;
+    private boolean m_isFlywheelOpenLoop = false;
 
     public flyWheel(int flyWheelCANId, int feedCANId) {
         //set motors
@@ -79,7 +80,8 @@ public class flyWheel extends SubsystemBase {
                     FuelLaunchConstants.kFlywheelkP,
                     FuelLaunchConstants.kFlywheelkI,
                     FuelLaunchConstants.kFlywheelkD)
-                .outputRange(-1.0, 1.0);
+                .outputRange(-1.0, 1.0)
+                .feedForward.kV(FuelLaunchConstants.kFlywheelkV);
         m_flyWheelSpark.configure(flywheelConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
         SparkMaxConfig feedConfig = new SparkMaxConfig();
@@ -93,7 +95,16 @@ public class flyWheel extends SubsystemBase {
     // Sets flywheel target speed in RPM with closed-loop velocity control.
     public void setFlyWheelSpeedRPM(double targetRPM) {
         m_targetFlywheelRpm = Math.max(0.0, targetRPM);
+        m_isFlywheelOpenLoop = false;
         m_flyWheelClosedLoopController.setSetpoint(m_targetFlywheelRpm, ControlType.kVelocity);
+    }
+
+    // Sets flywheel motor directly for debugging mechanical speed independent of velocity tuning.
+    public void setFlywheelOpenLoopPercent(double percentOutput) {
+        double clampedPercent = MathUtil.clamp(percentOutput, -1.0, 1.0);
+        m_isFlywheelOpenLoop = true;
+        m_targetFlywheelRpm = clampedPercent * NeoMotorConstants.kFreeSpeedRpm;
+        m_flyWheelSpark.set(clampedPercent);
     }
 
     // Sets feed motor output in open-loop percent [-1.0, 1.0].
@@ -112,6 +123,18 @@ public class flyWheel extends SubsystemBase {
         m_shootSpinupTimer.restart();
 
         setFlyWheelSpeedRPM(flywheelTargetRpm);
+        setFeedPercent(feedPercent);
+        m_feedSpark.stopMotor();
+    }
+
+    // Starts shooting with direct motor output for debugging.
+    public void startShootingOpenLoop(double flywheelPercent, double feedPercent) {
+        m_isShooting = true;
+        m_isClearingFeed = false;
+        m_clearTimer.stop();
+        m_shootSpinupTimer.restart();
+
+        setFlywheelOpenLoopPercent(flywheelPercent);
         setFeedPercent(feedPercent);
         m_feedSpark.stopMotor();
     }
@@ -143,6 +166,7 @@ public class flyWheel extends SubsystemBase {
     // Stops shooter and schedules feed reverse to clear jams.
     public void stopShooting() {
         m_isShooting = false;
+        m_isFlywheelOpenLoop = false;
         m_targetFlywheelRpm = 0.0;
         m_flyWheelSpark.stopMotor();
 
@@ -152,6 +176,7 @@ public class flyWheel extends SubsystemBase {
 
     // Backwards-compatible name used in earlier drafts.
     public void stopFlyWheel() {
+        m_isFlywheelOpenLoop = false;
         m_targetFlywheelRpm = 0.0;
         m_flyWheelSpark.stopMotor();
     }
@@ -179,6 +204,7 @@ public class flyWheel extends SubsystemBase {
     public void stopAll() {
         m_isShooting = false;
         m_isClearingFeed = false;
+        m_isFlywheelOpenLoop = false;
         m_targetFlywheelRpm = 0.0;
 
         m_clearTimer.stop();
@@ -192,7 +218,8 @@ public class flyWheel extends SubsystemBase {
     }
 
     public double getFeedSpeedRPM() {
-        return m_feedEncoder.getVelocity();
+        // Dashboard should report feed wheel RPM, not raw motor RPM.
+        return m_feedEncoder.getVelocity() / kFeedMotorToWheelRatio;
     }
 
     public double getTargetFlywheelRPM() {
@@ -205,6 +232,10 @@ public class flyWheel extends SubsystemBase {
 
     public boolean isClearingFeed() {
         return m_isClearingFeed;
+    }
+
+    public boolean isFlywheelOpenLoop() {
+        return m_isFlywheelOpenLoop;
     }
 
     public void setClearBehavior(double clearPercent, double clearDurationSec) {

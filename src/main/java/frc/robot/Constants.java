@@ -139,16 +139,18 @@ public final class Constants {
     public static final double kFlywheelkP = 0.0002;
     public static final double kFlywheelkI = 0.0;
     public static final double kFlywheelkD = 0.0;
+    // Nominal feedforward for motor-RPM velocity control at 12 V.
+    public static final double kFlywheelkV = 12.0 / NeoMotorConstants.kFreeSpeedRpm;
 
     // Current limits for the shooter and feed motors.
     public static final int kFlywheelCurrentLimitAmps = 60;
     public static final int kFeedCurrentLimitAmps = 40;
 
     // Default open-loop feed behavior while shooting and clearing.
-    public static final double kDefaultFeedPercent = 0.75;
+    public static final double kDefaultFeedPercent = 0.35;
     public static final double kDefaultClearPercent = -0.2;
     public static final double kDefaultClearDurationSec = 1.0;
-    public static final double kDefaultFeedDelaySec = 1.0;
+    public static final double kDefaultFeedDelaySec = 1.25;
     public static final double kDefaultVisionShooterPercent = 0.70;
   }
 

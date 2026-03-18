@@ -77,6 +77,7 @@ public class RobotContainer {
   private GenericEntry m_shooterFeedActualRpmEntry;
   private GenericEntry m_visionShootingEnabledEntry;
   private GenericEntry m_manualShooterPercentEntry;
+  private GenericEntry m_manualShooterRawOutputEntry;
   private GenericEntry m_manualShooterPercentDisplayEntry;
   private GenericEntry m_intakeForwardPressCountEntry;
   private GenericEntry m_intakeReversePressCountEntry;
@@ -88,6 +89,7 @@ public class RobotContainer {
   private int m_shooterStopPressCount = 0;
   private boolean m_visionShootingEnabled = true;
   private double m_manualShooterPercent = FuelLaunchConstants.kDefaultVisionShooterPercent;
+  private boolean m_manualShooterRawOutputEnabled = false;
   private final PIDController m_aimAtHubController = new PIDController(0.02, 0.0, 0.001);
 
   /**
@@ -199,6 +201,10 @@ public class RobotContainer {
   private void startSelectedShootingMode() {
     if (isVisionShootingEnabled()) {
       startVisionBasedShooting();
+    } else if (isManualShooterRawOutputEnabled()) {
+      m_shooter.startShootingOpenLoop(
+          getManualShooterPercent(),
+          FuelLaunchConstants.kDefaultFeedPercent);
     } else {
       m_shooter.startShootingAtPercent(getManualShooterPercent());
     }
@@ -229,6 +235,14 @@ public class RobotContainer {
           1.0);
     }
     return m_manualShooterPercent;
+  }
+
+  private boolean isManualShooterRawOutputEnabled() {
+    if (m_manualShooterRawOutputEntry != null) {
+      m_manualShooterRawOutputEnabled =
+          m_manualShooterRawOutputEntry.getBoolean(m_manualShooterRawOutputEnabled);
+    }
+    return m_manualShooterRawOutputEnabled;
   }
 
   private void initializeShooterOnBoot() {
@@ -437,6 +451,11 @@ public class RobotContainer {
         .withProperties(Map.of("Min", 0.0, "Max", 1.0, "Block increment", 0.01))
         .withSize(3, 1)
         .getEntry();
+    m_manualShooterRawOutputEntry = driverTab
+        .add("Manual Shooter Raw Output", m_manualShooterRawOutputEnabled)
+        .withWidget(BuiltInWidgets.kToggleSwitch)
+        .withSize(2, 1)
+        .getEntry();
     m_manualShooterPercentDisplayEntry = driverTab
         .add("Manual Shooter Percent Display", "")
         .withSize(2, 1)
@@ -461,6 +480,7 @@ public class RobotContainer {
     }
     m_visionShootingEnabled = isVisionShootingEnabled();
     m_manualShooterPercent = getManualShooterPercent();
+    m_manualShooterRawOutputEnabled = isManualShooterRawOutputEnabled();
     m_driverControlsEntry.setString(buildDriverControlsSummary());
     if (m_shooterActiveEntry != null) {
       m_shooterActiveEntry.setBoolean(m_shooter.isShooting());
@@ -499,7 +519,9 @@ public class RobotContainer {
     String visionReadState = m_cameraServerWrapper.isReadEnabled() ? "ON" : "OFF";
     String shootingMode = m_visionShootingEnabled
         ? "vision"
-        : String.format("manual %.0f%%", m_manualShooterPercent * 100.0);
+        : (m_manualShooterRawOutputEnabled
+            ? String.format("manual raw %.0f%%", m_manualShooterPercent * 100.0)
+            : String.format("manual rpm %.0f%%", m_manualShooterPercent * 100.0));
 
     return String.join(
         "\n",
