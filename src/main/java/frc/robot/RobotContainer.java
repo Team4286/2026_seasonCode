@@ -152,7 +152,7 @@ public class RobotContainer {
 
     NamedCommands.registerCommand(
         "start spin",
-        m_intake.feedPercentCommand(-1));
+        new InstantCommand(() ->m_intake.setFeedPercent(-0.4),m_intake));
 
     NamedCommands.registerCommand(
         "stop spin",

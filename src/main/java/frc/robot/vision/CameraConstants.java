@@ -32,14 +32,18 @@ public final class CameraConstants {
 
   // Approximate intrinsics for LifeCam HD-3000 at 640x480.
   // Replace with calibration values for best accuracy.
-  public static final double kFxPixels = 554.0;
-  public static final double kFyPixels = 554.0;
-  public static final double kCxPixels = 320.0;
-  public static final double kCyPixels = 240.0;
+  public static final double kFxPixels = 690.92;
+  public static final double kFyPixels = 689.80;
+  public static final double kCxPixels = 347.17;
+  public static final double kCyPixels = 226.89;
 
+  // horizontal foc 49.7
+  // ver 38.37
+  //diag 60.17
+  //board warp = 2.31
   // Manual image settings for the AprilTag camera to reduce motion blur and glare.
-  public static final int kAprilTagBrightness = 40;
-  public static final int kAprilTagExposure = 35;
+  public static final int kAprilTagBrightness = 20;
+  public static final int kAprilTagExposure = 25;
 
   // Detector tuning for smaller/farther tags.
   public static final int kAprilTagDetectorThreads = 2;
@@ -55,7 +59,7 @@ public final class CameraConstants {
   // Update for your real mount location and orientation.
   public static final Transform3d kRobotToAprilTagCamera =
       // forward/backward, left/right, up/down from ground, then camera rotation
-      new Transform3d(
+      new Transform3d(// it needs to be set 5.5 inchs to the left
           new Translation3d(0.0127, 0.0762, 0.5588),
           kRotateAprilTagCamera180 ? new Rotation3d(Math.PI, 0.0, 0.0) : new Rotation3d());
 
