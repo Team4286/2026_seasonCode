@@ -55,6 +55,10 @@ public final class CameraConstants {
   public static final int kAprilTagMinWhiteBlackDiff = 3;
   public static final boolean kAprilTagDeglitch = false;
 
+  // Subtract a fixed bias from measured AprilTag distance.
+  // Positive values reduce the reported distance.
+  public static final double kAprilTagDistanceOffsetMeters = 0.30;
+
   // Robot-to-camera transform in robot coordinates.
   // Update for your real mount location and orientation.
   public static final Transform3d kRobotToAprilTagCamera =

@@ -216,7 +216,7 @@ public class RobotContainer {
       double distanceMeters = m_cameraServerWrapper.getDistanceMeters();
       m_shooter.startShootingForDistanceMeters(distanceMeters);
     } else {
-      m_shooter.startShootingAtPercent(FuelLaunchConstants.kDefaultVisionShooterPercent);
+      m_shooter.startShootingAtPercent(FuelLaunchConstants.kNoVisionFallbackShooterPercent);
     }
   }
 
