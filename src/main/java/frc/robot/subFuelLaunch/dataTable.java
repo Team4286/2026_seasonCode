@@ -21,6 +21,7 @@ public final class dataTable {
         }
     }
 
+    // all photo camera constants should have +0.3 meters added for closest accuracy
     // Tuning workflow:
     // 1. Measure or read target distance in meters.
     // 2. Find the closest entry below and change flywheelPercent/feedPercent.
@@ -30,18 +31,13 @@ public final class dataTable {
         // Replace these with your real tested values as you collect them.
         // Example format:
         // new ShotEntry(2.01, 0.58, 0.32),
-        // new ShotEntry(2.36, 0.61, 0.32),
-        // new ShotEntry(2.95, 0.67, 0.34),
-        // new ShotEntry(3.24, 0.70, 0.35),
-        // new ShotEntry(3.50, 0.74, 0.36),
-        // new ShotEntry(3.80, 0.78, 0.38),
-        // new ShotEntry(4.12, 0.82, 0.40),
-        new ShotEntry(0.5, 0.50, 0.25),
-        new ShotEntry(1, 0.60, 0.28),
-        new ShotEntry(2, 0.70, 0.30),
-        new ShotEntry(3, 0.80, 0.32),
-        new ShotEntry(4, 0.95, 0.35),
-        new ShotEntry(4.5, 1, 0.38),
+        new ShotEntry(1.5,0.55,0.40),
+        new ShotEntry(2,0.60,0.40),
+        new ShotEntry(2.5,0.65,0.40),
+        new ShotEntry(3,0.7,0.40),
+        new ShotEntry(3.5,0.75,0.40),
+       
+        
     };
 
     public static double flywheelPercentForDistance(double distanceM) {
