@@ -57,6 +57,7 @@ public class CameraServerWrapper {
   private static final String kPoseErrorYMetersKey = "Vision/Calibration/PoseErrorY";
   private static final String kPoseErrorMetersKey = "Vision/Calibration/PoseErrorNorm";
   private static final String kHeadingErrorDegKey = "Vision/Calibration/HeadingErrorDeg";
+  private static final String kProcessingErrorKey = "Vision/Error/Processing";
 
   private UsbCamera aprilTagCamera;
   private UsbCamera driverCamera;
@@ -213,48 +214,62 @@ public class CameraServerWrapper {
               long lastCycleStartNanos = System.nanoTime();
 
               while (processingThreadRunning) {
-                if (!readEnabled || aprilTagSink == null) {
-                  sleepSeconds(0.02);
+                try {
+                  if (!readEnabled || aprilTagSink == null) {
+                    sleepSeconds(0.02);
+                    lastCycleStartNanos = System.nanoTime();
+                    continue;
+                  }
+
+                  double processHz =
+                      Math.max(1.0, SmartDashboard.getNumber(kProcessHzKey, CameraConstants.kVisionProcessHz));
+                  long cyclePeriodNanos = (long) (1_000_000_000.0 / processHz);
+                  long nowNanos = System.nanoTime();
+                  long elapsedNanos = nowNanos - lastCycleStartNanos;
+                  if (elapsedNanos < cyclePeriodNanos) {
+                    sleepSeconds((cyclePeriodNanos - elapsedNanos) / 1_000_000_000.0);
+                  }
                   lastCycleStartNanos = System.nanoTime();
-                  continue;
-                }
 
-                double processHz =
-                    Math.max(1.0, SmartDashboard.getNumber(kProcessHzKey, CameraConstants.kVisionProcessHz));
-                long cyclePeriodNanos = (long) (1_000_000_000.0 / processHz);
-                long nowNanos = System.nanoTime();
-                long elapsedNanos = nowNanos - lastCycleStartNanos;
-                if (elapsedNanos < cyclePeriodNanos) {
-                  sleepSeconds((cyclePeriodNanos - elapsedNanos) / 1_000_000_000.0);
-                }
-                lastCycleStartNanos = System.nanoTime();
+                  long frameTime = aprilTagSink.grabFrame(frame);
+                  if (frameTime == 0 || frame.empty()) {
+                    SmartDashboard.putBoolean(kDetectedKey, false);
+                    SmartDashboard.putBoolean(kHasTargetKey, false);
+                    hasTarget = false;
+                    floorDistanceMeters = 0.0;
+                    lineDistanceMeters = 0.0;
+                    yawDegrees = 0.0;
+                    latestVisionMeasurement = null;
+                    SmartDashboard.putBoolean(kFieldPoseValidKey, false);
+                    SmartDashboard.putString(kVisionSummaryKey, "target:none");
+                    sleepSeconds(0.01);
+                    continue;
+                  }
 
-                long frameTime = aprilTagSink.grabFrame(frame);
-                if (frameTime == 0 || frame.empty()) {
+                  rotateFrameIfNeeded(
+                      frame,
+                      processedFrame,
+                      CameraConstants.kRotateAprilTagCamera180);
+                  if (aprilTagDisplaySource != null) {
+                    aprilTagDisplaySource.putFrame(processedFrame);
+                  }
+
+                  Imgproc.cvtColor(processedFrame, gray, Imgproc.COLOR_BGR2GRAY);
+                  AprilTagDetection[] detections = detector.detect(gray);
+                  publishBestDetection(detections);
+                } catch (Throwable ex) {
+                  SmartDashboard.putString(
+                      kProcessingErrorKey,
+                      ex.getClass().getSimpleName() + ": " + ex.getMessage());
                   SmartDashboard.putBoolean(kDetectedKey, false);
                   SmartDashboard.putBoolean(kHasTargetKey, false);
                   hasTarget = false;
-                  floorDistanceMeters = 0.0;
-                  lineDistanceMeters = 0.0;
-                  yawDegrees = 0.0;
                   latestVisionMeasurement = null;
                   SmartDashboard.putBoolean(kFieldPoseValidKey, false);
-                  SmartDashboard.putString(kVisionSummaryKey, "target:none");
-                  sleepSeconds(0.01);
-                  continue;
+                  readEnabled = false;
+                  SmartDashboard.putBoolean(kReadEnabledKey, readEnabled);
+                  processingThreadRunning = false;
                 }
-
-                rotateFrameIfNeeded(
-                    frame,
-                    processedFrame,
-                    CameraConstants.kRotateAprilTagCamera180);
-                if (aprilTagDisplaySource != null) {
-                  aprilTagDisplaySource.putFrame(processedFrame);
-                }
-
-                Imgproc.cvtColor(processedFrame, gray, Imgproc.COLOR_BGR2GRAY);
-                AprilTagDetection[] detections = detector.detect(gray);
-                publishBestDetection(detections);
               }
 
               frame.release();
@@ -279,23 +294,32 @@ public class CameraServerWrapper {
               Mat processedFrame = new Mat();
 
               while (processingThreadRunning) {
-                if (!readEnabled || driverSink == null) {
-                  sleepSeconds(0.02);
-                  continue;
-                }
+                try {
+                  if (!readEnabled || driverSink == null) {
+                    sleepSeconds(0.02);
+                    continue;
+                  }
 
-                long frameTime = driverSink.grabFrame(frame);
-                if (frameTime == 0 || frame.empty()) {
-                  sleepSeconds(0.01);
-                  continue;
-                }
+                  long frameTime = driverSink.grabFrame(frame);
+                  if (frameTime == 0 || frame.empty()) {
+                    sleepSeconds(0.01);
+                    continue;
+                  }
 
-                rotateFrameIfNeeded(
-                    frame,
-                    processedFrame,
-                    CameraConstants.kRotateDriverCamera180);
-                if (driverDisplaySource != null) {
-                  driverDisplaySource.putFrame(processedFrame);
+                  rotateFrameIfNeeded(
+                      frame,
+                      processedFrame,
+                      CameraConstants.kRotateDriverCamera180);
+                  if (driverDisplaySource != null) {
+                    driverDisplaySource.putFrame(processedFrame);
+                  }
+                } catch (Throwable ex) {
+                  SmartDashboard.putString(
+                      kProcessingErrorKey,
+                      ex.getClass().getSimpleName() + ": " + ex.getMessage());
+                  readEnabled = false;
+                  SmartDashboard.putBoolean(kReadEnabledKey, readEnabled);
+                  processingThreadRunning = false;
                 }
               }
 
@@ -309,7 +333,7 @@ public class CameraServerWrapper {
   }
 
   private void publishBestDetection(AprilTagDetection[] detections) {
-    if (detections.length == 0) {
+    if (detections == null || detections.length == 0) {
       SmartDashboard.putBoolean(kDetectedKey, false);
       SmartDashboard.putBoolean(kHasTargetKey, false);
       hasTarget = false;

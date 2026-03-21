@@ -206,7 +206,11 @@ public class RobotContainer {
     if (m_cameraServerWrapper.hasTarget()) {
       // Vision distance feeds directly into the shooter lookup table.
       double distanceMeters = m_cameraServerWrapper.getDistanceMeters();
-      m_shooter.startShootingForDistanceMeters(distanceMeters);
+      if (Double.isFinite(distanceMeters) && distanceMeters > 0.0) {
+        m_shooter.startShootingForDistanceMeters(distanceMeters);
+      } else {
+        m_shooter.startShootingAtPercent(FuelLaunchConstants.kNoVisionFallbackShooterPercent);
+      }
     } else {
       m_shooter.startShootingAtPercent(FuelLaunchConstants.kNoVisionFallbackShooterPercent);
     }
