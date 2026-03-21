@@ -6,6 +6,14 @@ import frc.robot.Constants.NeoMotorConstants;
 // Distance-based shooter tuning table.
 // Update the entries below after test shots. Distances are meters from the camera/target pipeline.
 public final class dataTable {
+    private static final RegressionCoefficients FLYWHEEL_REGRESSION;
+    private static final RegressionCoefficients FEED_REGRESSION;
+
+    static {
+        FLYWHEEL_REGRESSION = computeRegression(true);
+        FEED_REGRESSION = computeRegression(false);
+    }
+
     private dataTable() {
     }
 
@@ -18,6 +26,16 @@ public final class dataTable {
             this.distanceMeters = distanceMeters;
             this.flywheelPercent = flywheelPercent;
             this.feedPercent = feedPercent;
+        }
+    }
+
+    private static final class RegressionCoefficients {
+        final double slope;
+        final double intercept;
+
+        RegressionCoefficients(double slope, double intercept) {
+            this.slope = slope;
+            this.intercept = intercept;
         }
     }
 
@@ -50,6 +68,24 @@ public final class dataTable {
 
     public static double feedPercentForDistance(double distanceM) {
         return interpolatePercent(distanceM, false);
+    }
+
+    // Predictive line of best fit based on the current tested shots.
+    public static double predictedFlywheelPercentForDistance(double distanceM) {
+        return predictedPercent(distanceM, FLYWHEEL_REGRESSION);
+    }
+
+    // Predictive line of best fit based on the current tested shots.
+    public static double predictedFeedPercentForDistance(double distanceM) {
+        return predictedPercent(distanceM, FEED_REGRESSION);
+    }
+
+    public static String flywheelPredictionEquation() {
+        return formatEquation(FLYWHEEL_REGRESSION);
+    }
+
+    public static String feedPredictionEquation() {
+        return formatEquation(FEED_REGRESSION);
     }
 
     // Legacy compatibility with the older physics-mix path.
@@ -91,6 +127,50 @@ public final class dataTable {
 
     private static double selectPercent(ShotEntry entry, boolean useFlywheelPercent) {
         return useFlywheelPercent ? entry.flywheelPercent : entry.feedPercent;
+    }
+
+    private static RegressionCoefficients computeRegression(boolean useFlywheelPercent) {
+        if (SHOT_TABLE.length == 0) {
+            return new RegressionCoefficients(0.0, 0.0);
+        }
+
+        if (SHOT_TABLE.length == 1) {
+            return new RegressionCoefficients(0.0, selectPercent(SHOT_TABLE[0], useFlywheelPercent));
+        }
+
+        double sumX = 0.0;
+        double sumY = 0.0;
+        double sumXY = 0.0;
+        double sumX2 = 0.0;
+
+        for (ShotEntry entry : SHOT_TABLE) {
+            double x = entry.distanceMeters;
+            double y = selectPercent(entry, useFlywheelPercent);
+            sumX += x;
+            sumY += y;
+            sumXY += x * y;
+            sumX2 += x * x;
+        }
+
+        double n = SHOT_TABLE.length;
+        double denominator = n * sumX2 - sumX * sumX;
+        if (Math.abs(denominator) < 1e-9) {
+            return new RegressionCoefficients(0.0, sumY / n);
+        }
+
+        double slope = (n * sumXY - sumX * sumY) / denominator;
+        double intercept = (sumY - slope * sumX) / n;
+        return new RegressionCoefficients(slope, intercept);
+    }
+
+    private static double predictedPercent(double distanceM, RegressionCoefficients coefficients) {
+        return clampPercent(coefficients.slope * distanceM + coefficients.intercept);
+    }
+
+    private static String formatEquation(RegressionCoefficients coefficients) {
+        return String.format("percent = %.4f * distanceMeters + %.4f",
+            coefficients.slope,
+            coefficients.intercept);
     }
 
     private static double clampPercent(double percent) {

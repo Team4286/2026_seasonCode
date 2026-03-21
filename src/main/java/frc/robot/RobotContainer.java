@@ -79,14 +79,6 @@ public class RobotContainer {
   private GenericEntry m_manualShooterPercentEntry;
   private GenericEntry m_manualShooterRawOutputEntry;
   private GenericEntry m_manualShooterPercentDisplayEntry;
-  private GenericEntry m_intakeForwardPressCountEntry;
-  private GenericEntry m_intakeReversePressCountEntry;
-  private GenericEntry m_shooterStartPressCountEntry;
-  private GenericEntry m_shooterStopPressCountEntry;
-  private int m_intakeForwardPressCount = 0;
-  private int m_intakeReversePressCount = 0;
-  private int m_shooterStartPressCount = 0;
-  private int m_shooterStopPressCount = 0;
   private boolean m_visionShootingEnabled = true;
   private double m_manualShooterPercent = FuelLaunchConstants.kDefaultVisionShooterPercent;
   private boolean m_manualShooterRawOutputEnabled = false;
@@ -285,7 +277,6 @@ public class RobotContainer {
 
     new JoystickButton(m_driverController, XboxController.Button.kBack.value)
         .onTrue(new InstantCommand(() -> {
-          m_shooterStopPressCount++;
           m_shooter.stopAll();
           updateDriverControlsDashboard();
         }, m_shooter));
@@ -303,21 +294,18 @@ public class RobotContainer {
 
     new JoystickButton(m_driverController, XboxController.Button.kY.value)
         .onTrue(new InstantCommand(() -> {
-          m_intakeForwardPressCount++;
           toggleIntakeFeed(-1.0);
           updateDriverControlsDashboard();
         }, m_intake));
 
     new JoystickButton(m_driverController, XboxController.Button.kB.value)
         .onTrue(new InstantCommand(() -> {
-          m_intakeReversePressCount++;
           toggleIntakeFeed(1.0);
           updateDriverControlsDashboard();
         }, m_intake));
 
     new JoystickButton(m_driverController, XboxController.Button.kA.value)
         .onTrue(new InstantCommand(() -> {
-          m_shooterStartPressCount++;
           shootFromDashboardModeCommand().schedule();
           updateDriverControlsDashboard();
         }, m_shooter));
@@ -414,7 +402,7 @@ public class RobotContainer {
       // Positive yaw means the target is off-center; PID drives that error back to zero.
       double yawErrorDeg = m_cameraServerWrapper.getYawDegrees();
       rotSpeed = MathUtil.clamp(
-          -m_aimAtHubController.calculate(yawErrorDeg, 0.0),
+          m_aimAtHubController.calculate(yawErrorDeg, 0.0),
           -RobotContainerConstants.kAimAtHubMaxTurnCommand,
           RobotContainerConstants.kAimAtHubMaxTurnCommand);
 
@@ -460,10 +448,6 @@ public class RobotContainer {
         .add("Manual Shooter Percent Display", "")
         .withSize(2, 1)
         .getEntry();
-    m_intakeForwardPressCountEntry = driverTab.add("Intake Y Presses", 0).withSize(2, 1).getEntry();
-    m_intakeReversePressCountEntry = driverTab.add("Intake B Presses", 0).withSize(2, 1).getEntry();
-    m_shooterStartPressCountEntry = driverTab.add("Shooter A Presses", 0).withSize(2, 1).getEntry();
-    m_shooterStopPressCountEntry = driverTab.add("Shooter Stop Presses", 0).withSize(2, 1).getEntry();
     driverTab.addBoolean("Gyro Connected", m_robotDrive::isGyroConnected).withSize(2, 1);
     driverTab.addBoolean("Cameras Working", m_cameraServerWrapper::areCamerasWorking).withSize(2, 1);
     driverTab.addBoolean("Vision Working", m_cameraServerWrapper::hasTarget).withSize(2, 1);
@@ -496,18 +480,6 @@ public class RobotContainer {
     }
     if (m_manualShooterPercentDisplayEntry != null) {
       m_manualShooterPercentDisplayEntry.setString(String.format("%.0f%%", m_manualShooterPercent * 100.0));
-    }
-    if (m_intakeForwardPressCountEntry != null) {
-      m_intakeForwardPressCountEntry.setDouble(m_intakeForwardPressCount);
-    }
-    if (m_intakeReversePressCountEntry != null) {
-      m_intakeReversePressCountEntry.setDouble(m_intakeReversePressCount);
-    }
-    if (m_shooterStartPressCountEntry != null) {
-      m_shooterStartPressCountEntry.setDouble(m_shooterStartPressCount);
-    }
-    if (m_shooterStopPressCountEntry != null) {
-      m_shooterStopPressCountEntry.setDouble(m_shooterStopPressCount);
     }
   }
 
