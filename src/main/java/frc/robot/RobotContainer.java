@@ -144,7 +144,7 @@ public class RobotContainer {
 
     NamedCommands.registerCommand(
         "start spin",
-        new InstantCommand(() ->m_intake.setFeedPercent(-0.4),m_intake));
+        new InstantCommand(() ->m_intake.setFeedPercent(-0.8),m_intake));
 
     NamedCommands.registerCommand(
         "stop spin",
@@ -298,13 +298,13 @@ public class RobotContainer {
 
     new JoystickButton(m_driverController, XboxController.Button.kY.value)
         .onTrue(new InstantCommand(() -> {
-          toggleIntakeFeed(-1.0);
+          toggleIntakeFeed(-0.8);
           updateDriverControlsDashboard();
         }, m_intake));
 
     new JoystickButton(m_driverController, XboxController.Button.kB.value)
         .onTrue(new InstantCommand(() -> {
-          toggleIntakeFeed(1.0);
+          toggleIntakeFeed(0.8);
           updateDriverControlsDashboard();
         }, m_intake));
 

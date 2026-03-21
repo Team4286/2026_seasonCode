@@ -17,6 +17,7 @@ import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import frc.robot.util.RobotLog;
 import java.util.Comparator;
 import java.util.Optional;
 import org.opencv.core.Core;
@@ -258,6 +259,7 @@ public class CameraServerWrapper {
                   AprilTagDetection[] detections = detector.detect(gray);
                   publishBestDetection(detections);
                 } catch (Throwable ex) {
+                  RobotLog.logException("Vision processing crashed", ex);
                   SmartDashboard.putString(
                       kProcessingErrorKey,
                       ex.getClass().getSimpleName() + ": " + ex.getMessage());
@@ -314,6 +316,7 @@ public class CameraServerWrapper {
                     driverDisplaySource.putFrame(processedFrame);
                   }
                 } catch (Throwable ex) {
+                  RobotLog.logException("Driver camera stream crashed", ex);
                   SmartDashboard.putString(
                       kProcessingErrorKey,
                       ex.getClass().getSimpleName() + ": " + ex.getMessage());

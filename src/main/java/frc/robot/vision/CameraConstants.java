@@ -57,7 +57,7 @@ public final class CameraConstants {
 
   // Subtract a fixed bias from measured AprilTag distance.
   // Positive values reduce the reported distance.
-  public static final double kAprilTagDistanceOffsetMeters = 0.30;
+  public static final double kAprilTagDistanceOffsetMeters = 0.15;
 
   // Robot-to-camera transform in robot coordinates.
   // Update for your real mount location and orientation.
