@@ -31,11 +31,11 @@ public final class dataTable {
         // Replace these with your real tested values as you collect them.
         // Example format:
         // new ShotEntry(2.01, 0.58, 0.32),
-        new ShotEntry(1.5,0.55,0.40),
-        new ShotEntry(2,0.60,0.40),
-        new ShotEntry(2.5,0.65,0.40),
-        new ShotEntry(3,0.7,0.40),
-        new ShotEntry(3.5,0.75,0.40),
+        new ShotEntry(1.5,0.26,0.40),
+        new ShotEntry(2,0.32,0.40),
+        new ShotEntry(2.5,0.37,0.40),
+        new ShotEntry(3,0.43,0.40),//works 
+        new ShotEntry(3.5,0.47,0.40), // works
        
         
     };
