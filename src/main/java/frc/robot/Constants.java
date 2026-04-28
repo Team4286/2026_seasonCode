@@ -150,7 +150,7 @@ public final class Constants {
     public static final double kDefaultFeedPercent = 0.35;
     public static final double kDefaultClearPercent = -0.2;
     public static final double kDefaultClearDurationSec = 1.0;
-    public static final double kDefaultFeedDelaySec = 1.25;
+    public static final double kDefaultFeedDelaySec = 1.5;
     public static final double kDefaultVisionShooterPercent = 0.70;
     public static final double kNoVisionFallbackShooterPercent = 0.50;
   }

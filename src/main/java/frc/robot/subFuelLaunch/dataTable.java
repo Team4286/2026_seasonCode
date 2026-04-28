@@ -36,6 +36,7 @@ public final class dataTable {
         new ShotEntry(2.5,0.37,0.40),
         new ShotEntry(3,0.43,0.40),//works 
         new ShotEntry(3.5,0.47,0.40), // works
+         new ShotEntry(4,0.50,0.40), // works
        
         
     };

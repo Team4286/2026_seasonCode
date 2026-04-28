@@ -298,13 +298,13 @@ public class RobotContainer {
 
     new JoystickButton(m_driverController, XboxController.Button.kY.value)
         .onTrue(new InstantCommand(() -> {
-          toggleIntakeFeed(-0.8);
+          toggleIntakeFeed(-1);
           updateDriverControlsDashboard();
         }, m_intake));
 
     new JoystickButton(m_driverController, XboxController.Button.kB.value)
         .onTrue(new InstantCommand(() -> {
-          toggleIntakeFeed(0.8);
+          toggleIntakeFeed(1);
           updateDriverControlsDashboard();
         }, m_intake));
 
